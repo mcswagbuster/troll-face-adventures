@@ -709,9 +709,6 @@ var $$ = {};
       }
       throw H.wrapException(P.UnsupportedError$('' + receiver));
     },
-    round$0: function(receiver) {
-      return this.toInt$0(this.roundToDouble$0(receiver));
-    },
     roundToDouble$0: function(receiver) {
       if (receiver < 0)
         return -Math.round(-receiver);
@@ -736,9 +733,6 @@ var $$ = {};
       if (typeof other !== "number")
         throw H.wrapException(P.ArgumentError$(other));
       return receiver - other;
-    },
-    $mul: function(receiver, other) {
-      return receiver * other;
     },
     $mod: function(receiver, other) {
       var result = receiver % other;
@@ -841,24 +835,6 @@ var $$ = {};
       if (startIndex === 0 && endIndex0 === endIndex)
         return result;
       return result.substring(startIndex, endIndex0);
-    },
-    $mul: function(receiver, times) {
-      var s, result;
-      if (0 >= times)
-        return "";
-      if (times === 1 || receiver.length === 0)
-        return receiver;
-      if (times !== times >>> 0)
-        throw H.wrapException(C.C_OutOfMemoryError);
-      for (s = receiver, result = ""; true;) {
-        if ((times & 1) === 1)
-          result = s + result;
-        times = times >>> 1;
-        if (times === 0)
-          break;
-        s += s;
-      }
-      return result;
     },
     indexOf$2: function(receiver, pattern, start) {
       if (start < 0 || start > receiver.length)
@@ -5829,16 +5805,6 @@ var $$ = {};
         return new P.ConcurrentModificationError(modifiedObject);
       }}
   },
-  OutOfMemoryError: {
-    "^": "Object;",
-    toString$0: function(_) {
-      return "Out of Memory";
-    },
-    get$stackTrace: function() {
-      return;
-    },
-    $isError: true
-  },
   StackOverflowError: {
     "^": "Object;",
     toString$0: function(_) {
@@ -6067,23 +6033,6 @@ var $$ = {};
     "^": "Interceptor;latitude=,longitude=",
     "%": "Coordinates"
   },
-  CssStyleDeclaration: {
-    "^": "Interceptor_CssStyleDeclarationBase;length=",
-    setProperty$3: function(receiver, propertyName, value, priority) {
-      var exception;
-      try {
-        if (priority == null)
-          priority = "";
-        receiver.setProperty(propertyName, value, priority);
-        if (!!receiver.setAttribute)
-          receiver.setAttribute(propertyName, value);
-      } catch (exception) {
-        H.unwrapException(exception);
-      }
-
-    },
-    "%": "CSS2Properties|CSSStyleDeclaration|MSStyleCSSProperties"
-  },
   Document: {
     "^": "Node;",
     $isDocument: true,
@@ -6292,18 +6241,6 @@ var $$ = {};
       return receiver.toString();
     },
     "%": "DOMWindow|Window"
-  },
-  Interceptor_CssStyleDeclarationBase: {
-    "^": "Interceptor+CssStyleDeclarationBase;"
-  },
-  CssStyleDeclarationBase: {
-    "^": "Object;",
-    set$height: function(receiver, value) {
-      this.setProperty$3(receiver, "height", value, "");
-    },
-    set$width: function(receiver, value) {
-      this.setProperty$3(receiver, "width", value, "");
-    }
   },
   Geolocation_getCurrentPosition_closure: {
     "^": "Closure:9;this_0,completer_1",
@@ -6651,7 +6588,7 @@ var $$ = {};
   _RectangleBase: {
     "^": "Object;",
     toString$0: function(_) {
-      return "Rectangle (" + H.S(this.get$left(this)) + ", " + H.S(this.top) + ") " + this.width + " x " + this.height;
+      return "Rectangle (" + H.S(this.get$left()) + ", " + H.S(this.top) + ") " + this.width + " x " + this.height;
     },
     $eq: function(_, other) {
       var t1, t2, t3, t4, t5;
@@ -6659,7 +6596,7 @@ var $$ = {};
         return false;
       if (!J.getInterceptor(other).$isRectangle)
         return false;
-      t1 = this.get$left(this);
+      t1 = this.get$left();
       t2 = other.left;
       if (t1 == null ? t2 == null : t1 === t2) {
         t1 = this.top;
@@ -6689,7 +6626,7 @@ var $$ = {};
     },
     get$hashCode: function(_) {
       var t1, t2, t3, t4;
-      t1 = J.get$hashCode$(this.get$left(this));
+      t1 = J.get$hashCode$(this.get$left());
       t2 = this.top;
       t3 = J.get$hashCode$(t2);
       t4 = this.left;
@@ -6701,7 +6638,7 @@ var $$ = {};
     }
   },
   Rectangle: {
-    "^": "_RectangleBase;left>,top,width,height",
+    "^": "_RectangleBase;left<,top,width,height",
     $isRectangle: true
   }
 }],
@@ -6851,8 +6788,8 @@ var $$ = {};
     $.RateOfFire = C.JSNumber_methods.toInt$0(C.JSNumber_methods.roundToDouble$0(t1 / t2 / 300));
     t1 = $.numEnim;
     if (t1 === 0) {
-      $.numEnim = 1;
-      t1 = 1;
+      $.numEnim = 4;
+      t1 = 4;
     }
     P.print(t1);
     $.enemy = Array($.numEnim);
@@ -7074,24 +7011,9 @@ var $$ = {};
 ["", "yrsapptestlevel.dart", , V, {
   "^": "",
   main: [function() {
-    var backStore, pixelRatio, ratio, oldWidth, oldHeight, t1, t2;
-    backStore = $.get$context().webkitBackingStorePixelRatio;
-    pixelRatio = window.devicePixelRatio;
-    if (typeof backStore !== "number")
-      return backStore.$div();
-    if (typeof pixelRatio !== "number")
-      return H.iae(pixelRatio);
-    ratio = backStore / pixelRatio;
-    oldWidth = J.$add$ns(J.get$width$x($.get$canvas()), 1415);
-    oldHeight = J.$add$ns(J.get$height$x($.get$canvas()), 750);
-    t1 = $.get$canvas();
-    t2 = J.getInterceptor$x(t1);
-    t2.set$width(t1, J.round$0$n(J.$mul$ns(oldWidth, ratio)));
-    t2.set$height(t1, J.round$0$n(J.$mul$ns(oldHeight, ratio)));
-    J.set$width$x(t1.style, H.S(oldWidth) + "px");
-    J.set$height$x(t1.style, H.S(oldHeight) + "px");
-    $.get$context().scale(ratio, ratio);
     G.getLocation();
+    J.set$width$x($.get$canvas(), 2000);
+    J.set$height$x($.get$canvas(), 750);
   }, "call$0", "main$closure", 0, 0, 2],
   istouching: function(x, y) {
     var istouching, i, t1, Platform, t2;
@@ -7180,18 +7102,18 @@ var $$ = {};
       this.width = t2;
       this.height = rect.height;
       J.set$width$x(t1, t2);
-      this.sun = V.PlanetaryBody$(this, "green", 0, 200, true, 4, true, 0, 0);
+      this.sun = V.PlanetaryBody$(this, "green", 0, 200, true, 4, true, 0, 0, 0);
       P.Future_Future$delayed(C.Duration_1000000, new V.SolarSystem_start_closure(this));
       platformscoord = [[0, 360, 227, 15], [220, 300, 227, 15], [220, 60, 227, 15], [440, 240, 227, 15], [440, 120, 227, 15], [660, 180, 227, 15], [880, 240, 227, 15], [1100, 300, 227, 15]];
       for (i = 0; i < 8; ++i) {
         z = platformscoord[i];
-        $.get$platforms().push(V.PlanetaryBody$(this, "block 1", z[0], z[1], false, 0, false, 0, 0));
+        $.get$platforms().push(V.PlanetaryBody$(this, "block 1", z[0], z[1], false, 0, false, i, 0, 0));
       }
       for (i = 0; t1 = $.enemy, t2 = t1.length, i < t2; ++i) {
         if (i >= 8)
           return H.ioore(platformscoord, i);
         z = platformscoord[i];
-        t3 = V.PlanetaryBody$(this, "red 1", z[0] + 100, z[1] - 60, true, 4, true, 0, 0);
+        t3 = V.PlanetaryBody$(this, "red 1", z[0] + 100, z[1] - 60, true, 4, true, i, 0, 0);
         if (i >= t2)
           return H.ioore(t1, i);
         t1[i] = t3;
@@ -7421,14 +7343,14 @@ var $$ = {};
       t1 = this.image;
       t2 = this.imageright;
       xadjust = (t1 == null ? t2 == null : t1 === t2) ? 5 : -25;
-      arrow = V.PlanetaryBody$(this.solarSystem, imgname, this.x + xadjust, this.y, false, 8, true, 0, 0);
+      arrow = V.PlanetaryBody$(this.solarSystem, imgname, this.x + xadjust, this.y, false, 8, true, 0, 0, 0);
       t1 = this.image;
       t2 = this.imageright;
       arrow.moveleftright$1((t1 == null ? t2 == null : t1 === t2) ? 1 : -1);
       arrow.jump$0();
       $.get$arrowlist().push(arrow);
     },
-    PlanetaryBody$9: function(solarSystem, color, x, y, gravity, speed, candie, orbitRadius, orbitPeriod) {
+    PlanetaryBody$10: function(solarSystem, color, x, y, gravity, speed, candie, direction, orbitRadius, orbitPeriod) {
       var t1;
       this.speedx = 0;
       this.speedy = 0;
@@ -7436,15 +7358,18 @@ var $$ = {};
       this.imageleft = W.ImageElement_ImageElement(null, "img/" + t1 + "-left.png", null);
       t1 = W.ImageElement_ImageElement(null, "img/" + t1 + "-right.png", null);
       this.imageright = t1;
-      this.image = t1;
+      if (C.JSInt_methods.$mod(direction, 2) === 0)
+        this.image = t1;
+      else
+        this.image = this.imageleft;
       this.imgheight = J.get$height$x(t1);
       this.imgwidth = J.get$width$x(this.imageright);
       this.bodySize = 0;
       this.isvisable = 1;
     },
-    static: {PlanetaryBody$: function(solarSystem, color, x, y, gravity, speed, candie, orbitRadius, orbitPeriod) {
+    static: {PlanetaryBody$: function(solarSystem, color, x, y, gravity, speed, candie, direction, orbitRadius, orbitPeriod) {
         var t1 = new V.PlanetaryBody(color, orbitPeriod, solarSystem, null, orbitRadius, null, null, x, y, null, null, null, null, null, null, null, gravity, speed, candie, false, H.setRuntimeTypeInfo([], [V.PlanetaryBody]));
-        t1.PlanetaryBody$9(solarSystem, color, x, y, gravity, speed, candie, orbitRadius, orbitPeriod);
+        t1.PlanetaryBody$10(solarSystem, color, x, y, gravity, speed, candie, direction, orbitRadius, orbitPeriod);
         return t1;
       }}
   },
@@ -7628,11 +7553,6 @@ J.$indexSet$ax = function(receiver, a0, a1) {
     return receiver[a0] = a1;
   return J.getInterceptor$ax(receiver).$indexSet(receiver, a0, a1);
 };
-J.$mul$ns = function(receiver, a0) {
-  if (typeof receiver == "number" && typeof a0 == "number")
-    return receiver * a0;
-  return J.getInterceptor$ns(receiver).$mul(receiver, a0);
-};
 J.$sub$n = function(receiver, a0) {
   if (typeof receiver == "number" && typeof a0 == "number")
     return receiver - a0;
@@ -7704,9 +7624,6 @@ J.removeEventListener$3$x = function(receiver, a0, a1, a2) {
 J.replaceAll$2$s = function(receiver, a0, a1) {
   return J.getInterceptor$s(receiver).replaceAll$2(receiver, a0, a1);
 };
-J.round$0$n = function(receiver) {
-  return J.getInterceptor$n(receiver).round$0(receiver);
-};
 J.send$1$x = function(receiver, a0) {
   return J.getInterceptor$x(receiver).send$1(receiver, a0);
 };
@@ -7736,7 +7653,6 @@ C.PlainJavaScriptObject_methods = J.PlainJavaScriptObject.prototype;
 C.UnknownJavaScriptObject_methods = J.UnknownJavaScriptObject.prototype;
 C.Window_methods = W.Window.prototype;
 C.C_DynamicRuntimeType = new H.DynamicRuntimeType();
-C.C_OutOfMemoryError = new P.OutOfMemoryError();
 C.C__RootZone = new P._RootZone();
 C.Duration_0 = new P.Duration(0);
 C.Duration_1000000 = new P.Duration(1000000);

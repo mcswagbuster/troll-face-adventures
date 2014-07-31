@@ -70,7 +70,7 @@ void enimNum(crime) {
   numEnim   = ((enim / crime.length) / 600).round();
   RateOfFire = ((enim / crime.length) / 300).round();
   if (numEnim == 0) 
-    numEnim = 1;
+    numEnim = 4;
   
   stuff();
 }

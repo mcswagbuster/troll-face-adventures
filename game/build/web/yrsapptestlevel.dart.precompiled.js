@@ -709,9 +709,6 @@ var $$ = {};
       }
       throw H.wrapException(P.UnsupportedError$('' + receiver));
     },
-    round$0: function(receiver) {
-      return this.toInt$0(this.roundToDouble$0(receiver));
-    },
     roundToDouble$0: function(receiver) {
       if (receiver < 0)
         return -Math.round(-receiver);
@@ -736,9 +733,6 @@ var $$ = {};
       if (typeof other !== "number")
         throw H.wrapException(P.ArgumentError$(other));
       return receiver - other;
-    },
-    $mul: function(receiver, other) {
-      return receiver * other;
     },
     $mod: function(receiver, other) {
       var result = receiver % other;
@@ -841,24 +835,6 @@ var $$ = {};
       if (startIndex === 0 && endIndex0 === endIndex)
         return result;
       return result.substring(startIndex, endIndex0);
-    },
-    $mul: function(receiver, times) {
-      var s, result;
-      if (0 >= times)
-        return "";
-      if (times === 1 || receiver.length === 0)
-        return receiver;
-      if (times !== times >>> 0)
-        throw H.wrapException(C.C_OutOfMemoryError);
-      for (s = receiver, result = ""; true;) {
-        if ((times & 1) === 1)
-          result = s + result;
-        times = times >>> 1;
-        if (times === 0)
-          break;
-        s += s;
-      }
-      return result;
     },
     indexOf$2: function(receiver, pattern, start) {
       if (start < 0 || start > receiver.length)
@@ -5829,16 +5805,6 @@ var $$ = {};
         return new P.ConcurrentModificationError(modifiedObject);
       }}
   },
-  OutOfMemoryError: {
-    "^": "Object;",
-    toString$0: function(_) {
-      return "Out of Memory";
-    },
-    get$stackTrace: function() {
-      return;
-    },
-    $isError: true
-  },
   StackOverflowError: {
     "^": "Object;",
     toString$0: function(_) {
@@ -6067,23 +6033,6 @@ var $$ = {};
     "^": "Interceptor;latitude=,longitude=",
     "%": "Coordinates"
   },
-  CssStyleDeclaration: {
-    "^": "Interceptor_CssStyleDeclarationBase;length=",
-    setProperty$3: function(receiver, propertyName, value, priority) {
-      var exception;
-      try {
-        if (priority == null)
-          priority = "";
-        receiver.setProperty(propertyName, value, priority);
-        if (!!receiver.setAttribute)
-          receiver.setAttribute(propertyName, value);
-      } catch (exception) {
-        H.unwrapException(exception);
-      }
-
-    },
-    "%": "CSS2Properties|CSSStyleDeclaration|MSStyleCSSProperties"
-  },
   Document: {
     "^": "Node;",
     $isDocument: true,
@@ -6292,18 +6241,6 @@ var $$ = {};
       return receiver.toString();
     },
     "%": "DOMWindow|Window"
-  },
-  Interceptor_CssStyleDeclarationBase: {
-    "^": "Interceptor+CssStyleDeclarationBase;"
-  },
-  CssStyleDeclarationBase: {
-    "^": "Object;",
-    set$height: function(receiver, value) {
-      this.setProperty$3(receiver, "height", value, "");
-    },
-    set$width: function(receiver, value) {
-      this.setProperty$3(receiver, "width", value, "");
-    }
   },
   Geolocation_getCurrentPosition_closure: {
     "^": "Closure:9;this_0,completer_1",
@@ -6651,7 +6588,7 @@ var $$ = {};
   _RectangleBase: {
     "^": "Object;",
     toString$0: function(_) {
-      return "Rectangle (" + H.S(this.get$left(this)) + ", " + H.S(this.top) + ") " + this.width + " x " + this.height;
+      return "Rectangle (" + H.S(this.get$left()) + ", " + H.S(this.top) + ") " + this.width + " x " + this.height;
     },
     $eq: function(_, other) {
       var t1, t2, t3, t4, t5;
@@ -6659,7 +6596,7 @@ var $$ = {};
         return false;
       if (!J.getInterceptor(other).$isRectangle)
         return false;
-      t1 = this.get$left(this);
+      t1 = this.get$left();
       t2 = other.left;
       if (t1 == null ? t2 == null : t1 === t2) {
         t1 = this.top;
@@ -6689,7 +6626,7 @@ var $$ = {};
     },
     get$hashCode: function(_) {
       var t1, t2, t3, t4;
-      t1 = J.get$hashCode$(this.get$left(this));
+      t1 = J.get$hashCode$(this.get$left());
       t2 = this.top;
       t3 = J.get$hashCode$(t2);
       t4 = this.left;
@@ -6701,7 +6638,7 @@ var $$ = {};
     }
   },
   Rectangle: {
-    "^": "_RectangleBase;left>,top,width,height",
+    "^": "_RectangleBase;left<,top,width,height",
     $isRectangle: true
   }
 }],
@@ -6851,8 +6788,8 @@ var $$ = {};
     $.RateOfFire = C.JSNumber_methods.toInt$0(C.JSNumber_methods.roundToDouble$0(t1 / t2 / 300));
     t1 = $.numEnim;
     if (t1 === 0) {
-      $.numEnim = 1;
-      t1 = 1;
+      $.numEnim = 4;
+      t1 = 4;
     }
     P.print(t1);
     $.enemy = Array($.numEnim);
@@ -7074,24 +7011,9 @@ var $$ = {};
 ["", "yrsapptestlevel.dart", , V, {
   "^": "",
   main: [function() {
-    var backStore, pixelRatio, ratio, oldWidth, oldHeight, t1, t2;
-    backStore = $.get$context().webkitBackingStorePixelRatio;
-    pixelRatio = window.devicePixelRatio;
-    if (typeof backStore !== "number")
-      return backStore.$div();
-    if (typeof pixelRatio !== "number")
-      return H.iae(pixelRatio);
-    ratio = backStore / pixelRatio;
-    oldWidth = J.$add$ns(J.get$width$x($.get$canvas()), 1415);
-    oldHeight = J.$add$ns(J.get$height$x($.get$canvas()), 750);
-    t1 = $.get$canvas();
-    t2 = J.getInterceptor$x(t1);
-    t2.set$width(t1, J.round$0$n(J.$mul$ns(oldWidth, ratio)));
-    t2.set$height(t1, J.round$0$n(J.$mul$ns(oldHeight, ratio)));
-    J.set$width$x(t1.style, H.S(oldWidth) + "px");
-    J.set$height$x(t1.style, H.S(oldHeight) + "px");
-    $.get$context().scale(ratio, ratio);
     G.getLocation();
+    J.set$width$x($.get$canvas(), 2000);
+    J.set$height$x($.get$canvas(), 750);
   }, "call$0", "main$closure", 0, 0, 2],
   istouching: function(x, y) {
     var istouching, i, t1, Platform, t2;
@@ -7180,18 +7102,18 @@ var $$ = {};
       this.width = t2;
       this.height = rect.height;
       J.set$width$x(t1, t2);
-      this.sun = V.PlanetaryBody$(this, "green", 0, 200, true, 4, true, 0, 0);
+      this.sun = V.PlanetaryBody$(this, "green", 0, 200, true, 4, true, 0, 0, 0);
       P.Future_Future$delayed(C.Duration_1000000, new V.SolarSystem_start_closure(this));
       platformscoord = [[0, 360, 227, 15], [220, 300, 227, 15], [220, 60, 227, 15], [440, 240, 227, 15], [440, 120, 227, 15], [660, 180, 227, 15], [880, 240, 227, 15], [1100, 300, 227, 15]];
       for (i = 0; i < 8; ++i) {
         z = platformscoord[i];
-        $.get$platforms().push(V.PlanetaryBody$(this, "block 1", z[0], z[1], false, 0, false, 0, 0));
+        $.get$platforms().push(V.PlanetaryBody$(this, "block 1", z[0], z[1], false, 0, false, i, 0, 0));
       }
       for (i = 0; t1 = $.enemy, t2 = t1.length, i < t2; ++i) {
         if (i >= 8)
           return H.ioore(platformscoord, i);
         z = platformscoord[i];
-        t3 = V.PlanetaryBody$(this, "red 1", z[0] + 100, z[1] - 60, true, 4, true, 0, 0);
+        t3 = V.PlanetaryBody$(this, "red 1", z[0] + 100, z[1] - 60, true, 4, true, i, 0, 0);
         if (i >= t2)
           return H.ioore(t1, i);
         t1[i] = t3;
@@ -7421,14 +7343,14 @@ var $$ = {};
       t1 = this.image;
       t2 = this.imageright;
       xadjust = (t1 == null ? t2 == null : t1 === t2) ? 5 : -25;
-      arrow = V.PlanetaryBody$(this.solarSystem, imgname, this.x + xadjust, this.y, false, 8, true, 0, 0);
+      arrow = V.PlanetaryBody$(this.solarSystem, imgname, this.x + xadjust, this.y, false, 8, true, 0, 0, 0);
       t1 = this.image;
       t2 = this.imageright;
       arrow.moveleftright$1((t1 == null ? t2 == null : t1 === t2) ? 1 : -1);
       arrow.jump$0();
       $.get$arrowlist().push(arrow);
     },
-    PlanetaryBody$9: function(solarSystem, color, x, y, gravity, speed, candie, orbitRadius, orbitPeriod) {
+    PlanetaryBody$10: function(solarSystem, color, x, y, gravity, speed, candie, direction, orbitRadius, orbitPeriod) {
       var t1;
       this.speedx = 0;
       this.speedy = 0;
@@ -7436,15 +7358,18 @@ var $$ = {};
       this.imageleft = W.ImageElement_ImageElement(null, "img/" + t1 + "-left.png", null);
       t1 = W.ImageElement_ImageElement(null, "img/" + t1 + "-right.png", null);
       this.imageright = t1;
-      this.image = t1;
+      if (C.JSInt_methods.$mod(direction, 2) === 0)
+        this.image = t1;
+      else
+        this.image = this.imageleft;
       this.imgheight = J.get$height$x(t1);
       this.imgwidth = J.get$width$x(this.imageright);
       this.bodySize = 0;
       this.isvisable = 1;
     },
-    static: {PlanetaryBody$: function(solarSystem, color, x, y, gravity, speed, candie, orbitRadius, orbitPeriod) {
+    static: {PlanetaryBody$: function(solarSystem, color, x, y, gravity, speed, candie, direction, orbitRadius, orbitPeriod) {
         var t1 = new V.PlanetaryBody(color, orbitPeriod, solarSystem, null, orbitRadius, null, null, x, y, null, null, null, null, null, null, null, gravity, speed, candie, false, H.setRuntimeTypeInfo([], [V.PlanetaryBody]));
-        t1.PlanetaryBody$9(solarSystem, color, x, y, gravity, speed, candie, orbitRadius, orbitPeriod);
+        t1.PlanetaryBody$10(solarSystem, color, x, y, gravity, speed, candie, direction, orbitRadius, orbitPeriod);
         return t1;
       }}
   },
@@ -7628,11 +7553,6 @@ J.$indexSet$ax = function(receiver, a0, a1) {
     return receiver[a0] = a1;
   return J.getInterceptor$ax(receiver).$indexSet(receiver, a0, a1);
 };
-J.$mul$ns = function(receiver, a0) {
-  if (typeof receiver == "number" && typeof a0 == "number")
-    return receiver * a0;
-  return J.getInterceptor$ns(receiver).$mul(receiver, a0);
-};
 J.$sub$n = function(receiver, a0) {
   if (typeof receiver == "number" && typeof a0 == "number")
     return receiver - a0;
@@ -7704,9 +7624,6 @@ J.removeEventListener$3$x = function(receiver, a0, a1, a2) {
 J.replaceAll$2$s = function(receiver, a0, a1) {
   return J.getInterceptor$s(receiver).replaceAll$2(receiver, a0, a1);
 };
-J.round$0$n = function(receiver) {
-  return J.getInterceptor$n(receiver).round$0(receiver);
-};
 J.send$1$x = function(receiver, a0) {
   return J.getInterceptor$x(receiver).send$1(receiver, a0);
 };
@@ -7736,7 +7653,6 @@ C.PlainJavaScriptObject_methods = J.PlainJavaScriptObject.prototype;
 C.UnknownJavaScriptObject_methods = J.UnknownJavaScriptObject.prototype;
 C.Window_methods = W.Window.prototype;
 C.C_DynamicRuntimeType = new H.DynamicRuntimeType();
-C.C_OutOfMemoryError = new P.OutOfMemoryError();
 C.C__RootZone = new P._RootZone();
 C.Duration_0 = new P.Duration(0);
 C.Duration_1000000 = new P.Duration(1000000);
@@ -8624,18 +8540,6 @@ function dart_precompiled($collectedClasses) {
   if ($desc instanceof Array)
     $desc = $desc[1];
   CssFontFaceLoadEvent.prototype = $desc;
-  function CssStyleDeclaration() {
-  }
-  CssStyleDeclaration.builtin$cls = "CssStyleDeclaration";
-  if (!"name" in CssStyleDeclaration)
-    CssStyleDeclaration.name = "CssStyleDeclaration";
-  $desc = $collectedClasses.CssStyleDeclaration;
-  if ($desc instanceof Array)
-    $desc = $desc[1];
-  CssStyleDeclaration.prototype = $desc;
-  CssStyleDeclaration.prototype.get$length = function(receiver) {
-    return receiver.length;
-  };
   function CssStyleSheet() {
   }
   CssStyleSheet.builtin$cls = "CssStyleSheet";
@@ -12824,15 +12728,6 @@ function dart_precompiled($collectedClasses) {
   if ($desc instanceof Array)
     $desc = $desc[1];
   ConcurrentModificationError.prototype = $desc;
-  function OutOfMemoryError() {
-  }
-  OutOfMemoryError.builtin$cls = "OutOfMemoryError";
-  if (!"name" in OutOfMemoryError)
-    OutOfMemoryError.name = "OutOfMemoryError";
-  $desc = $collectedClasses.OutOfMemoryError;
-  if ($desc instanceof Array)
-    $desc = $desc[1];
-  OutOfMemoryError.prototype = $desc;
   function StackOverflowError() {
   }
   StackOverflowError.builtin$cls = "StackOverflowError";
@@ -12994,24 +12889,6 @@ function dart_precompiled($collectedClasses) {
   if ($desc instanceof Array)
     $desc = $desc[1];
   Symbol.prototype = $desc;
-  function Interceptor_CssStyleDeclarationBase() {
-  }
-  Interceptor_CssStyleDeclarationBase.builtin$cls = "Interceptor_CssStyleDeclarationBase";
-  if (!"name" in Interceptor_CssStyleDeclarationBase)
-    Interceptor_CssStyleDeclarationBase.name = "Interceptor_CssStyleDeclarationBase";
-  $desc = $collectedClasses.Interceptor_CssStyleDeclarationBase;
-  if ($desc instanceof Array)
-    $desc = $desc[1];
-  Interceptor_CssStyleDeclarationBase.prototype = $desc;
-  function CssStyleDeclarationBase() {
-  }
-  CssStyleDeclarationBase.builtin$cls = "CssStyleDeclarationBase";
-  if (!"name" in CssStyleDeclarationBase)
-    CssStyleDeclarationBase.name = "CssStyleDeclarationBase";
-  $desc = $collectedClasses.CssStyleDeclarationBase;
-  if ($desc instanceof Array)
-    $desc = $desc[1];
-  CssStyleDeclarationBase.prototype = $desc;
   function Geolocation_getCurrentPosition_closure(this_0, completer_1) {
     this.this_0 = this_0;
     this.completer_1 = completer_1;
@@ -13177,7 +13054,7 @@ function dart_precompiled($collectedClasses) {
   if ($desc instanceof Array)
     $desc = $desc[1];
   Rectangle.prototype = $desc;
-  Rectangle.prototype.get$left = function(receiver) {
+  Rectangle.prototype.get$left = function() {
     return this.left;
   };
   function NativeTypedArray() {
@@ -13452,5 +13329,5 @@ function dart_precompiled($collectedClasses) {
   if ($desc instanceof Array)
     $desc = $desc[1];
   addSound___doPlaySound.prototype = $desc;
-  return [HtmlElement, AnchorElement, AnimationEvent, AreaElement, AudioElement, AutocompleteErrorEvent, BRElement, BaseElement, BeforeLoadEvent, BeforeUnloadEvent, Blob, BodyElement, ButtonElement, CanvasElement, CanvasRenderingContext, CanvasRenderingContext2D, CloseEvent, CompositionEvent, ContentElement, Coordinates, CssFontFaceLoadEvent, CssStyleDeclaration, CssStyleSheet, CustomEvent, DListElement, DataListElement, DetailsElement, DeviceMotionEvent, DeviceOrientationEvent, DialogElement, DivElement, Document, DomError, DomException, Element, EmbedElement, ErrorEvent, Event, EventTarget, FieldSetElement, File, FileError, FocusEvent, FormElement, Geolocation, Geoposition, HRElement, HashChangeEvent, HeadElement, HeadingElement, HtmlDocument, HtmlHtmlElement, HttpRequest, HttpRequestEventTarget, IFrameElement, ImageElement, InputElement, InstallEvent, InstallPhaseEvent, KeyboardEvent, KeygenElement, LIElement, LabelElement, LegendElement, LinkElement, MapElement, MediaElement, MediaError, MediaKeyError, MediaKeyEvent, MediaKeyMessageEvent, MediaKeyNeededEvent, MediaStreamEvent, MediaStreamTrackEvent, MenuElement, MessageEvent, MetaElement, MeterElement, MidiConnectionEvent, MidiMessageEvent, ModElement, MouseEvent, Navigator, NavigatorUserMediaError, Node, OListElement, ObjectElement, OptGroupElement, OptionElement, OutputElement, OverflowEvent, PageTransitionEvent, ParagraphElement, ParamElement, PopStateEvent, PositionError, PreElement, ProgressElement, ProgressEvent, QuoteElement, ResourceProgressEvent, RtcDataChannelEvent, RtcDtmfToneChangeEvent, RtcIceCandidateEvent, ScriptElement, SecurityPolicyViolationEvent, SelectElement, ShadowElement, SourceElement, SpanElement, SpeechInputEvent, SpeechRecognitionError, SpeechRecognitionEvent, SpeechSynthesisEvent, StorageEvent, StyleElement, StyleSheet, TableCaptionElement, TableCellElement, TableColElement, TableElement, TableRowElement, TableSectionElement, TemplateElement, TextAreaElement, TextEvent, TitleElement, TouchEvent, TrackElement, TrackEvent, TransitionEvent, UIEvent, UListElement, UnknownElement, VideoElement, WheelEvent, Window, XmlDocument, _HTMLAppletElement, _HTMLDirectoryElement, _HTMLFontElement, _HTMLFrameElement, _HTMLFrameSetElement, _HTMLMarqueeElement, _MutationEvent, _XMLHttpRequestProgressEvent, VersionChangeEvent, AElement, AltGlyphElement, AnimateElement, AnimateMotionElement, AnimateTransformElement, AnimatedLength, AnimatedLengthList, AnimatedNumber, AnimatedNumberList, AnimationElement, CircleElement, ClipPathElement, DefsElement, DescElement, DiscardElement, EllipseElement, FEBlendElement, FEColorMatrixElement, FEComponentTransferElement, FECompositeElement, FEConvolveMatrixElement, FEDiffuseLightingElement, FEDisplacementMapElement, FEDistantLightElement, FEFloodElement, FEFuncAElement, FEFuncBElement, FEFuncGElement, FEFuncRElement, FEGaussianBlurElement, FEImageElement, FEMergeElement, FEMergeNodeElement, FEMorphologyElement, FEOffsetElement, FEPointLightElement, FESpecularLightingElement, FESpotLightElement, FETileElement, FETurbulenceElement, FilterElement, ForeignObjectElement, GElement, GeometryElement, GraphicsElement, ImageElement0, LineElement, LinearGradientElement, MarkerElement, MaskElement, MetadataElement, PathElement, PatternElement, PolygonElement, PolylineElement, RadialGradientElement, RectElement, ScriptElement0, SetElement, StopElement, StyleElement0, SvgElement, SvgSvgElement, SwitchElement, SymbolElement, TSpanElement, TextContentElement, TextElement, TextPathElement, TextPositioningElement, TitleElement0, UseElement, ViewElement, ZoomEvent, _GradientElement, _SVGAltGlyphDefElement, _SVGAltGlyphItemElement, _SVGComponentTransferFunctionElement, _SVGCursorElement, _SVGFEDropShadowElement, _SVGFontElement, _SVGFontFaceElement, _SVGFontFaceFormatElement, _SVGFontFaceNameElement, _SVGFontFaceSrcElement, _SVGFontFaceUriElement, _SVGGlyphElement, _SVGGlyphRefElement, _SVGHKernElement, _SVGMPathElement, _SVGMissingGlyphElement, _SVGVKernElement, AudioBuffer, AudioBufferSourceNode, AudioContext, AudioDestinationNode, AudioNode, AudioProcessingEvent, AudioSourceNode, OfflineAudioCompletionEvent, OfflineAudioContext, ContextEvent, SqlError, NativeByteBuffer, NativeTypedData, NativeUint8List, CsvSheet0, _CsvColumn, CsvRow, JS_CONST, Interceptor, JSBool, JSNull, JavaScriptObject, PlainJavaScriptObject, UnknownJavaScriptObject, JSArray, JSNumber, JSInt, JSDouble, JSString, startRootIsolate_closure, startRootIsolate_closure0, _Manager, _IsolateContext, _IsolateContext_handlePing_respond, _EventLoop, _EventLoop__runHelper_next, _IsolateEvent, _MainManagerStub, IsolateNatives__processWorkerMessage_closure, IsolateNatives__startIsolate_runStartFunction, _BaseSendPort, _NativeJsSendPort, _NativeJsSendPort_send_closure, _WorkerSendPort, RawReceivePortImpl, _JsSerializer, _JsCopier, _JsDeserializer, _JsVisitedMap, _MessageTraverserVisitedMap, _MessageTraverser, _Copier, _Copier_visitMap_closure, _Serializer, _Deserializer, TimerImpl, TimerImpl_internalCallback, TimerImpl_internalCallback0, CapabilityImpl, ReflectionInfo, TypeErrorDecoder, NullError, JsNoSuchMethodError, UnknownJsTypeError, unwrapException_saveStackTrace, _StackTrace, invokeClosure_closure, invokeClosure_closure0, invokeClosure_closure1, invokeClosure_closure2, invokeClosure_closure3, Closure, TearOffClosure, BoundClosure, RuntimeError, RuntimeType, RuntimeFunctionType, DynamicRuntimeType, initHooks_closure, initHooks_closure0, initHooks_closure1, ListIterator, MappedIterable, EfficientLengthMappedIterable, MappedIterator, FixedLengthListMixin, _AsyncRun__scheduleImmediateJsOverride_internalCallback, _AsyncError, Future_Future$delayed_closure, Future_Future$delayed_closure0, _Completer, _AsyncCompleter, _SyncCompleter, _Future, _Future__addListener_closure, _Future__chainForeignFuture_closure, _Future__chainForeignFuture_closure0, _Future__asyncComplete_closure, _Future__asyncComplete_closure0, _Future__asyncCompleteError_closure, _Future__propagateToListeners_handleValueCallback, _Future__propagateToListeners_handleError, _Future__propagateToListeners_handleWhenCompleteCallback, _Future__propagateToListeners_handleWhenCompleteCallback_closure, _Future__propagateToListeners_handleWhenCompleteCallback_closure0, _AsyncCallbackEntry, Stream, Stream_forEach_closure, Stream_forEach__closure, Stream_forEach__closure0, Stream_forEach_closure0, Stream_length_closure, Stream_length_closure0, StreamSubscription, _EventSink, _cancelAndError_closure, _cancelAndErrorClosure_closure, _BaseZone, _BaseZone_bindCallback_closure, _BaseZone_bindCallback_closure0, _BaseZone_bindUnaryCallback_closure, _BaseZone_bindUnaryCallback_closure0, _rootHandleUncaughtError_closure, _rootHandleUncaughtError__closure, _RootZone, _HashMap, _HashMap_values_closure, HashMapKeyIterable, HashMapKeyIterator, _LinkedHashMap, _LinkedHashMap_values_closure, LinkedHashMapCell, LinkedHashMapKeyIterable, LinkedHashMapKeyIterator, _HashSet, _IdentityHashSet, HashSetIterator, _LinkedHashSet, LinkedHashSetCell, LinkedHashSetIterator, _HashSetBase, IterableBase, ListMixin, Maps_mapToString_closure, ListQueue, _ListQueueIterator, NoSuchMethodError_toString_closure, bool, DateTime, $double, Duration, Duration_toString_sixDigits, Duration_toString_twoDigits, Error, NullThrownError, ArgumentError, RangeError, UnsupportedError, UnimplementedError, StateError, ConcurrentModificationError, OutOfMemoryError, StackOverflowError, CyclicInitializationError, _ExceptionImplementation, FormatException, Expando, Function, $int, Iterator, List, Map, Null, num, Object, StackTrace, String, StringBuffer, Symbol, Interceptor_CssStyleDeclarationBase, CssStyleDeclarationBase, Geolocation_getCurrentPosition_closure, Geolocation_getCurrentPosition_closure0, _GeopositionWrapper, HttpRequest_getString_closure, HttpRequest_request_closure0, HttpRequest_request_closure, EventStreamProvider, _EventStream, _EventStreamSubscription, AudioContext_decodeAudioData_closure, AudioContext_decodeAudioData_closure0, Capability, Point, _RectangleBase, Rectangle, NativeTypedArray, NativeTypedArrayOfInt, NativeTypedArray_ListMixin, NativeTypedArray_ListMixin_FixedLengthListMixin, getLocation_closure, getLocation_closure0, calculateClosest_closure, setUpCrime_closure, enimNum_closure, getCrimes_closure, convertNativeToDart_AcceptStructuredClone_findSlot, convertNativeToDart_AcceptStructuredClone_readSlot, convertNativeToDart_AcceptStructuredClone_writeSlot, convertNativeToDart_AcceptStructuredClone_walk, keyboard, keyboard_closure, keyboard_closure0, SolarSystem, SolarSystem_start_closure, SolarSystem_AI_closure, PlanetaryBody, addSound_closure, addSound__closure, addSound___doPlaySound];
+  return [HtmlElement, AnchorElement, AnimationEvent, AreaElement, AudioElement, AutocompleteErrorEvent, BRElement, BaseElement, BeforeLoadEvent, BeforeUnloadEvent, Blob, BodyElement, ButtonElement, CanvasElement, CanvasRenderingContext, CanvasRenderingContext2D, CloseEvent, CompositionEvent, ContentElement, Coordinates, CssFontFaceLoadEvent, CssStyleSheet, CustomEvent, DListElement, DataListElement, DetailsElement, DeviceMotionEvent, DeviceOrientationEvent, DialogElement, DivElement, Document, DomError, DomException, Element, EmbedElement, ErrorEvent, Event, EventTarget, FieldSetElement, File, FileError, FocusEvent, FormElement, Geolocation, Geoposition, HRElement, HashChangeEvent, HeadElement, HeadingElement, HtmlDocument, HtmlHtmlElement, HttpRequest, HttpRequestEventTarget, IFrameElement, ImageElement, InputElement, InstallEvent, InstallPhaseEvent, KeyboardEvent, KeygenElement, LIElement, LabelElement, LegendElement, LinkElement, MapElement, MediaElement, MediaError, MediaKeyError, MediaKeyEvent, MediaKeyMessageEvent, MediaKeyNeededEvent, MediaStreamEvent, MediaStreamTrackEvent, MenuElement, MessageEvent, MetaElement, MeterElement, MidiConnectionEvent, MidiMessageEvent, ModElement, MouseEvent, Navigator, NavigatorUserMediaError, Node, OListElement, ObjectElement, OptGroupElement, OptionElement, OutputElement, OverflowEvent, PageTransitionEvent, ParagraphElement, ParamElement, PopStateEvent, PositionError, PreElement, ProgressElement, ProgressEvent, QuoteElement, ResourceProgressEvent, RtcDataChannelEvent, RtcDtmfToneChangeEvent, RtcIceCandidateEvent, ScriptElement, SecurityPolicyViolationEvent, SelectElement, ShadowElement, SourceElement, SpanElement, SpeechInputEvent, SpeechRecognitionError, SpeechRecognitionEvent, SpeechSynthesisEvent, StorageEvent, StyleElement, StyleSheet, TableCaptionElement, TableCellElement, TableColElement, TableElement, TableRowElement, TableSectionElement, TemplateElement, TextAreaElement, TextEvent, TitleElement, TouchEvent, TrackElement, TrackEvent, TransitionEvent, UIEvent, UListElement, UnknownElement, VideoElement, WheelEvent, Window, XmlDocument, _HTMLAppletElement, _HTMLDirectoryElement, _HTMLFontElement, _HTMLFrameElement, _HTMLFrameSetElement, _HTMLMarqueeElement, _MutationEvent, _XMLHttpRequestProgressEvent, VersionChangeEvent, AElement, AltGlyphElement, AnimateElement, AnimateMotionElement, AnimateTransformElement, AnimatedLength, AnimatedLengthList, AnimatedNumber, AnimatedNumberList, AnimationElement, CircleElement, ClipPathElement, DefsElement, DescElement, DiscardElement, EllipseElement, FEBlendElement, FEColorMatrixElement, FEComponentTransferElement, FECompositeElement, FEConvolveMatrixElement, FEDiffuseLightingElement, FEDisplacementMapElement, FEDistantLightElement, FEFloodElement, FEFuncAElement, FEFuncBElement, FEFuncGElement, FEFuncRElement, FEGaussianBlurElement, FEImageElement, FEMergeElement, FEMergeNodeElement, FEMorphologyElement, FEOffsetElement, FEPointLightElement, FESpecularLightingElement, FESpotLightElement, FETileElement, FETurbulenceElement, FilterElement, ForeignObjectElement, GElement, GeometryElement, GraphicsElement, ImageElement0, LineElement, LinearGradientElement, MarkerElement, MaskElement, MetadataElement, PathElement, PatternElement, PolygonElement, PolylineElement, RadialGradientElement, RectElement, ScriptElement0, SetElement, StopElement, StyleElement0, SvgElement, SvgSvgElement, SwitchElement, SymbolElement, TSpanElement, TextContentElement, TextElement, TextPathElement, TextPositioningElement, TitleElement0, UseElement, ViewElement, ZoomEvent, _GradientElement, _SVGAltGlyphDefElement, _SVGAltGlyphItemElement, _SVGComponentTransferFunctionElement, _SVGCursorElement, _SVGFEDropShadowElement, _SVGFontElement, _SVGFontFaceElement, _SVGFontFaceFormatElement, _SVGFontFaceNameElement, _SVGFontFaceSrcElement, _SVGFontFaceUriElement, _SVGGlyphElement, _SVGGlyphRefElement, _SVGHKernElement, _SVGMPathElement, _SVGMissingGlyphElement, _SVGVKernElement, AudioBuffer, AudioBufferSourceNode, AudioContext, AudioDestinationNode, AudioNode, AudioProcessingEvent, AudioSourceNode, OfflineAudioCompletionEvent, OfflineAudioContext, ContextEvent, SqlError, NativeByteBuffer, NativeTypedData, NativeUint8List, CsvSheet0, _CsvColumn, CsvRow, JS_CONST, Interceptor, JSBool, JSNull, JavaScriptObject, PlainJavaScriptObject, UnknownJavaScriptObject, JSArray, JSNumber, JSInt, JSDouble, JSString, startRootIsolate_closure, startRootIsolate_closure0, _Manager, _IsolateContext, _IsolateContext_handlePing_respond, _EventLoop, _EventLoop__runHelper_next, _IsolateEvent, _MainManagerStub, IsolateNatives__processWorkerMessage_closure, IsolateNatives__startIsolate_runStartFunction, _BaseSendPort, _NativeJsSendPort, _NativeJsSendPort_send_closure, _WorkerSendPort, RawReceivePortImpl, _JsSerializer, _JsCopier, _JsDeserializer, _JsVisitedMap, _MessageTraverserVisitedMap, _MessageTraverser, _Copier, _Copier_visitMap_closure, _Serializer, _Deserializer, TimerImpl, TimerImpl_internalCallback, TimerImpl_internalCallback0, CapabilityImpl, ReflectionInfo, TypeErrorDecoder, NullError, JsNoSuchMethodError, UnknownJsTypeError, unwrapException_saveStackTrace, _StackTrace, invokeClosure_closure, invokeClosure_closure0, invokeClosure_closure1, invokeClosure_closure2, invokeClosure_closure3, Closure, TearOffClosure, BoundClosure, RuntimeError, RuntimeType, RuntimeFunctionType, DynamicRuntimeType, initHooks_closure, initHooks_closure0, initHooks_closure1, ListIterator, MappedIterable, EfficientLengthMappedIterable, MappedIterator, FixedLengthListMixin, _AsyncRun__scheduleImmediateJsOverride_internalCallback, _AsyncError, Future_Future$delayed_closure, Future_Future$delayed_closure0, _Completer, _AsyncCompleter, _SyncCompleter, _Future, _Future__addListener_closure, _Future__chainForeignFuture_closure, _Future__chainForeignFuture_closure0, _Future__asyncComplete_closure, _Future__asyncComplete_closure0, _Future__asyncCompleteError_closure, _Future__propagateToListeners_handleValueCallback, _Future__propagateToListeners_handleError, _Future__propagateToListeners_handleWhenCompleteCallback, _Future__propagateToListeners_handleWhenCompleteCallback_closure, _Future__propagateToListeners_handleWhenCompleteCallback_closure0, _AsyncCallbackEntry, Stream, Stream_forEach_closure, Stream_forEach__closure, Stream_forEach__closure0, Stream_forEach_closure0, Stream_length_closure, Stream_length_closure0, StreamSubscription, _EventSink, _cancelAndError_closure, _cancelAndErrorClosure_closure, _BaseZone, _BaseZone_bindCallback_closure, _BaseZone_bindCallback_closure0, _BaseZone_bindUnaryCallback_closure, _BaseZone_bindUnaryCallback_closure0, _rootHandleUncaughtError_closure, _rootHandleUncaughtError__closure, _RootZone, _HashMap, _HashMap_values_closure, HashMapKeyIterable, HashMapKeyIterator, _LinkedHashMap, _LinkedHashMap_values_closure, LinkedHashMapCell, LinkedHashMapKeyIterable, LinkedHashMapKeyIterator, _HashSet, _IdentityHashSet, HashSetIterator, _LinkedHashSet, LinkedHashSetCell, LinkedHashSetIterator, _HashSetBase, IterableBase, ListMixin, Maps_mapToString_closure, ListQueue, _ListQueueIterator, NoSuchMethodError_toString_closure, bool, DateTime, $double, Duration, Duration_toString_sixDigits, Duration_toString_twoDigits, Error, NullThrownError, ArgumentError, RangeError, UnsupportedError, UnimplementedError, StateError, ConcurrentModificationError, StackOverflowError, CyclicInitializationError, _ExceptionImplementation, FormatException, Expando, Function, $int, Iterator, List, Map, Null, num, Object, StackTrace, String, StringBuffer, Symbol, Geolocation_getCurrentPosition_closure, Geolocation_getCurrentPosition_closure0, _GeopositionWrapper, HttpRequest_getString_closure, HttpRequest_request_closure0, HttpRequest_request_closure, EventStreamProvider, _EventStream, _EventStreamSubscription, AudioContext_decodeAudioData_closure, AudioContext_decodeAudioData_closure0, Capability, Point, _RectangleBase, Rectangle, NativeTypedArray, NativeTypedArrayOfInt, NativeTypedArray_ListMixin, NativeTypedArray_ListMixin_FixedLengthListMixin, getLocation_closure, getLocation_closure0, calculateClosest_closure, setUpCrime_closure, enimNum_closure, getCrimes_closure, convertNativeToDart_AcceptStructuredClone_findSlot, convertNativeToDart_AcceptStructuredClone_readSlot, convertNativeToDart_AcceptStructuredClone_writeSlot, convertNativeToDart_AcceptStructuredClone_walk, keyboard, keyboard_closure, keyboard_closure0, SolarSystem, SolarSystem_start_closure, SolarSystem_AI_closure, PlanetaryBody, addSound_closure, addSound__closure, addSound___doPlaySound];
 }

@@ -19,9 +19,10 @@ List<PlanetaryBody> arrowlist = new List();
 List platforms = new List();
 
 void main() {
-  highDpi();
-  
   getLocation();
+  
+  canvas.width = 2000;
+  canvas.height = 750;
 }
 
 void stuff() {
@@ -30,24 +31,6 @@ void stuff() {
    scheduleMicrotask(new SolarSystem(canvas).start);
    startaudio();
 }
-
-void highDpi() {
-  double backStore = context.backingStorePixelRatio,
-         pixelRatio = window.devicePixelRatio,
-         ratio      = backStore / pixelRatio;
-  
-  int oldWidth  = canvas.width + 1415,
-      oldHeight = canvas.height + 750;
-  
-  canvas ..width  = (oldWidth * ratio).round()
-         ..height = (oldHeight * ratio).round()
-         
-         ..style.width = "${oldWidth}px"
-         ..style.height = "${oldHeight}px";
-         
-  context.scale(ratio, ratio);
-}
-
 
 void oldmain() {
   window.animationFrame.then(animate);
@@ -137,7 +120,7 @@ start() {
  canvas.width = width;
 
  // Create sun.
- sun = new PlanetaryBody(this, "green", 0, 200, true, 4, true);
+ sun = new PlanetaryBody(this, "green", 0, 200, true, 4, true, 0);
  
 // Enemy AI shooting
 new Future.delayed(const Duration(seconds:1), () {
@@ -164,12 +147,12 @@ var platformscoord = [
 
 for (var i = 0; i < platformscoord.length; i++) {
     var z = platformscoord[i];
-    platforms.add(new PlanetaryBody (this, "block 1", z[0], z[1], false, 0, false));
+    platforms.add(new PlanetaryBody (this, "block 1", z[0], z[1], false, 0, false, i));
 }
 
 for (int i = 0; i < enemy.length; i++) {
    var z = platformscoord[i];
-   enemy[i] = new PlanetaryBody(this, "red 1", z[0] + 100, z[1] - 60, true, 4, true);
+   enemy[i] = new PlanetaryBody(this, "red 1", z[0] + 100, z[1] - 60, true, 4, true, i);
 }
 
  //Create Platfrom
@@ -255,11 +238,16 @@ bool dying = false;
 final List<PlanetaryBody> planets = <PlanetaryBody>[];
 
 PlanetaryBody(this.solarSystem, this.color, this.x, this.y, this.gravity, this.speed, this.candie, 
-   [this.orbitRadius = 0.0, this.orbitPeriod = 0.0]) {
+   int direction, [this.orbitRadius = 0.0, this.orbitPeriod = 0.0]) {
   speedx=0; speedy=0;
   imageleft  = new ImageElement(src: "img/${color}-left.png");
   imageright = new ImageElement(src: "img/${color}-right.png");
-  image = imageright;
+  
+  if (direction % 2 == 0) {
+    image = imageright;
+  } else {
+    image = imageleft;
+  }
   imgheight = imageright.height;
   imgwidth = imageright.width;
   bodySize = 0;
@@ -362,7 +350,7 @@ if (direction == -1) {
   PlanetaryBody arrow;
   // start a bit away from us so it doesn't kill us
     var xadjust = image == imageright ? 5 : -25;
-    arrow = new PlanetaryBody(this.solarSystem, imgname, x + xadjust, y, false, 8, true);
+    arrow = new PlanetaryBody(this.solarSystem, imgname, x + xadjust, y, false, 8, true, 0);
     arrow.moveleftright(image == imageright ? 1 : -1);
     arrow.jump();
     arrowlist.add (arrow);
