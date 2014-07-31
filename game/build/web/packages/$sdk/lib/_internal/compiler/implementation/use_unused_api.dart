@@ -54,7 +54,6 @@ void main(List<String> arguments) {
   useConstant(null, null);
   useNode(null);
   useUtil(null);
-  useSetlet(null);
   useElementVisitor(new ElementVisitor());
   useJs(new js.Program(null));
   useJs(new js.Blob(null));
@@ -124,10 +123,6 @@ void useUtil(util.Link link) {
   link.reversePrependAll(link);
 }
 
-void useSetlet(util.Setlet setlet) {
-  setlet.difference(setlet);
-}
-
 void useElementVisitor(ElementVisitor visitor) {
   visitor
     ..visit(null)
@@ -156,6 +151,7 @@ void useElementVisitor(ElementVisitor visitor) {
     ..visitTypeVariableElement(null)
     ..visitTypedefElement(null)
     ..visitVariableElement(null)
+    ..visitVoidElement(null)
     ..visitWarnOnUseElement(null);
 }
 
@@ -200,7 +196,7 @@ usedByTests() {
   compiler.importHelperLibrary(null);
   typeGraphInferrer.getCallersOf(null);
   dart_types.Types.sorted(null);
-  new dart_types.Types(compiler).copy(compiler);
+  new dart_types.Types(compiler, null).copy(compiler);
   new universe.TypedSelector.subclass(null, null);
   new universe.TypedSelector.subtype(null, null);
   new universe.TypedSelector.exact(null, null);

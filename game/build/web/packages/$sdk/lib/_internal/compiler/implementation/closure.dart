@@ -10,7 +10,8 @@ import "dart_types.dart";
 import "scanner/scannerlib.dart" show Token;
 import "tree/tree.dart";
 import "util/util.dart";
-import "elements/modelx.dart" show ElementX, FunctionElementX, ClassElementX;
+import "elements/modelx.dart" show ElementX, SynthesizedCallMethodElementX,
+    ClassElementX;
 import "elements/visitor.dart" show ElementVisitor;
 
 class ClosureNamer {
@@ -43,17 +44,19 @@ class ClosureTask extends CompilerTask {
       if (node is FunctionExpression) {
         translator.translateFunction(element, node);
       } else if (element.isSynthesized) {
-        return new ClosureClassMap(null, null, null, new ThisElement(element));
+        return new ClosureClassMap(null, null, null,
+            new ThisElement(element, compiler.types.dynamicType));
       } else {
-        assert(element.isField);
+        assert(element.isField());
         VariableElement field = element;
         if (field.initializer != null) {
           // The lazy initializer of a static.
           translator.translateLazyInitializer(element, node, field.initializer);
         } else {
-          assert(element.isInstanceMember);
+          assert(element.isInstanceMember());
           closureMappingCache[node] =
-              new ClosureClassMap(null, null, null, new ThisElement(element));
+              new ClosureClassMap(null, null, null,
+                  new ThisElement(element, compiler.types.dynamicType));
         }
       }
       assert(closureMappingCache[node] != null);
@@ -84,20 +87,14 @@ class ClosureFieldElement extends ElementX implements VariableElement {
                       ClassElement enclosing)
       : super(name, ElementKind.FIELD, enclosing);
 
-  Node get node {
-    throw new SpannableAssertionFailure(
-        variableElement,
-        'Should not access node of ClosureFieldElement.');
-  }
-
   Expression get initializer {
     throw new SpannableAssertionFailure(
         variableElement,
         'Should not access initializer of ClosureFieldElement.');
   }
 
-  bool get isInstanceMember => true;
-  bool get isAssignable => false;
+  bool isInstanceMember() => true;
+  bool isAssignable() => false;
 
   DartType computeType(Compiler compiler) {
     return variableElement.type;
@@ -132,7 +129,7 @@ class ClosureClassElement extends ClassElementX {
               // classes (since the emitter sorts classes by their id).
               compiler.getNextFreeClassId(),
               STATE_DONE) {
-    ClassElement superclass = methodElement.isInstanceMember
+    ClassElement superclass = methodElement.isInstanceMember()
         ? compiler.boundClosureClass
         : compiler.closureClass;
     superclass.ensureResolved(compiler);
@@ -144,9 +141,9 @@ class ClosureClassElement extends ClassElementX {
     callType = methodElement.type;
   }
 
-  bool get isClosure => true;
+  bool isClosure() => true;
 
-  Token get position => node.getBeginToken();
+  Token position() => node.getBeginToken();
 
   Node parseNode(DiagnosticListener listener) => node;
 
@@ -158,7 +155,7 @@ class ClosureClassElement extends ClassElementX {
   // A [ClosureClassElement] is nested inside a function or initializer in terms
   // of [enclosingElement], but still has to be treated as a top-level
   // element.
-  bool get isTopLevel => true;
+  bool isTopLevel() => true;
 
   get enclosingElement => methodElement;
 
@@ -169,12 +166,12 @@ class ClosureClassElement extends ClassElementX {
 // move these classes to elements/modelx.dart or see if we can find a
 // more general solution.
 class BoxElement extends ElementX implements TypedElement {
-  BoxElement(String name, Element enclosingElement)
+  final DartType type;
+
+  BoxElement(String name, Element enclosingElement, this.type)
       : super(name, ElementKind.VARIABLE_LIST, enclosingElement);
 
   DartType computeType(Compiler compiler) => type;
-
-  DartType get type => const DynamicType();
 
   accept(ElementVisitor visitor) => visitor.visitBoxElement(this);
 }
@@ -201,37 +198,20 @@ class BoxFieldElement extends ElementX implements TypedElement {
 // move these classes to elements/modelx.dart or see if we can find a
 // more general solution.
 class ThisElement extends ElementX implements TypedElement {
-  ThisElement(Element enclosing)
+  final DartType type;
+
+  ThisElement(Element enclosing, this.type)
       : super('this', ElementKind.PARAMETER, enclosing);
 
-  bool get isAssignable => false;
+  bool isAssignable() => false;
 
-  DartType computeType(Compiler compiler) => type;
-
-  DartType get type => const DynamicType();
+  DartType computeType(Compiler compiler) => compiler.types.dynamicType;
 
   // Since there is no declaration corresponding to 'this', use the position of
   // the enclosing method.
-  Token get position => enclosingElement.position;
+  Token position() => enclosingElement.position();
 
   accept(ElementVisitor visitor) => visitor.visitThisElement(this);
-}
-
-/// Call method of a closure class.
-class SynthesizedCallMethodElementX extends FunctionElementX {
-  final FunctionElement expression;
-
-  SynthesizedCallMethodElementX(String name,
-                                FunctionElementX other,
-                                Element enclosing)
-      : expression = other,
-        super(name, other.kind, other.modifiers, enclosing, false) {
-    functionSignatureCache = other.functionSignature;
-  }
-
-  FunctionExpression get node => expression.node;
-
-  FunctionExpression parseNode(DiagnosticListener listener) => node;
 }
 
 // The box-element for a scope, and the captured variables that need to be
@@ -289,7 +269,7 @@ class ClosureClassMap {
         this.capturingScopes = new Map<Node, ClosureScope>(),
         this.usedVariablesInTry = new Set<Element>();
 
-  bool get isClosure => closureElement != null;
+  bool isClosure() => closureElement != null;
 
   bool capturingScopesBox(Element element) {
     return capturingScopes.values.any((scope) {
@@ -299,7 +279,7 @@ class ClosureClassMap {
 
   bool isVariableBoxed(Element element) {
     Element copy = freeVariableMapping[element];
-    if (copy != null && !copy.isMember) return true;
+    if (copy != null && !copy.isMember()) return true;
     return capturingScopesBox(element);
   }
 
@@ -402,7 +382,7 @@ class ClosureTranslator extends Visitor {
         if (fromElement == updatedElement) {
           assert(freeVariableMapping[fromElement] == updatedElement);
           assert(Elements.isLocal(updatedElement)
-                 || updatedElement.isTypeVariable);
+                 || updatedElement.isTypeVariable());
           // The variable has not been boxed.
           fieldCaptures.add(updatedElement);
         } else {
@@ -502,20 +482,20 @@ class ClosureTranslator extends Visitor {
   }
 
   visitTypeAnnotation(TypeAnnotation node) {
-    Element member = currentElement.enclosingMember;
+    Element member = currentElement.getEnclosingMember();
     DartType type = elements.getType(node);
     // TODO(karlklose,johnniwinther): if the type is null, the annotation is
     // from a parameter which has been analyzed before the method has been
     // resolved and the result has been thrown away.
     if (compiler.enableTypeAssertions && type != null &&
         type.containsTypeVariables) {
-      if (insideClosure && member.isFactoryConstructor) {
+      if (insideClosure && member.isFactoryConstructor()) {
         // This is a closure in a factory constructor.  Since there is no
         // [:this:], we have to mark the type arguments as free variables to
         // capture them in the closure.
         type.forEachTypeVariable((variable) => useLocal(variable.element));
       }
-      if (member.isInstanceMember && !member.isField) {
+      if (member.isInstanceMember() && !member.isField()) {
         // In checked mode, using a type variable in a type annotation may lead
         // to a runtime type check that needs to access the type argument and
         // therefore the closure needs a this-element, if it is not in a field
@@ -532,7 +512,7 @@ class ClosureTranslator extends Visitor {
     } else {
       Element element = elements[node];
       if (element != null && element.kind == ElementKind.TYPE_VARIABLE) {
-        if (outermostElement.isConstructor) {
+        if (outermostElement.isConstructor()) {
           useLocal(element);
         } else {
           registerNeedsThis();
@@ -546,7 +526,7 @@ class ClosureTranslator extends Visitor {
     Element element = elements[node];
     if (Elements.isLocal(element)) {
       useLocal(element);
-    } else if (element != null && element.isTypeVariable) {
+    } else if (element != null && element.isTypeVariable()) {
       TypeVariableElement variable = element;
       analyzeType(variable.type);
     } else if (node.receiver == null &&
@@ -593,8 +573,8 @@ class ClosureTranslator extends Visitor {
     type.forEachTypeVariable((TypeVariableType typeVariable) {
       // Field initializers are inlined and access the type variable as
       // normal parameters.
-      if (!outermostElement.isField &&
-          !outermostElement.isConstructor) {
+      if (!outermostElement.isField() &&
+          !outermostElement.isConstructor()) {
         registerNeedsThis();
       } else {
         useLocal(typeVariable.element);
@@ -605,12 +585,12 @@ class ClosureTranslator extends Visitor {
   void analyzeType(DartType type) {
     // TODO(johnniwinther): Find out why this can be null.
     if (type == null) return;
-    if (outermostElement.isMember &&
-        compiler.backend.classNeedsRti(outermostElement.enclosingClass)) {
-      if (outermostElement.isConstructor ||
-          outermostElement.isField) {
+    if (outermostElement.isMember() &&
+        compiler.backend.classNeedsRti(outermostElement.getEnclosingClass())) {
+      if (outermostElement.isConstructor() ||
+          outermostElement.isField()) {
         analyzeTypeVariables(type);
-      } else if (outermostElement.isInstanceMember) {
+      } else if (outermostElement.isInstanceMember()) {
         if (type.containsTypeVariables) {
           registerNeedsThis();
         }
@@ -627,7 +607,7 @@ class ClosureTranslator extends Visitor {
     Map<Element, Element> scopeMapping = new Map<Element, Element>();
     for (Element element in scopeVariables) {
       // No need to box non-assignable elements.
-      if (!element.isAssignable) continue;
+      if (!element.isAssignable()) continue;
       if (!mutatedVariables.contains(element)) continue;
       if (capturedVariableMapping.containsKey(element)) {
         if (box == null) {
@@ -635,7 +615,7 @@ class ClosureTranslator extends Visitor {
           String boxName =
               namer.getClosureVariableName('box', closureFieldCounter++);
           box = new BoxElement(
-              boxName, currentElement);
+              boxName, currentElement, compiler.types.dynamicType);
         }
         String elementName = element.name;
         String boxedName =
@@ -712,9 +692,9 @@ class ClosureTranslator extends Visitor {
               || enclosingElement.kind == ElementKind.SETTER);
          enclosingElement = enclosingElement.enclosingElement) {
       // TODO(johnniwinther): Simplify computed names.
-      if (enclosingElement.isGenerativeConstructor ||
-          enclosingElement.isGenerativeConstructorBody ||
-          enclosingElement.isFactoryConstructor) {
+      if (enclosingElement.isGenerativeConstructor() ||
+          enclosingElement.isGenerativeConstructorBody() ||
+          enclosingElement.isFactoryConstructor()) {
         parts = parts.prepend(
             Elements.reconstructConstructorName(enclosingElement));
       } else {
@@ -735,7 +715,7 @@ class ClosureTranslator extends Visitor {
                                    TypedElement element) {
     String closureName = computeClosureName(element);
     ClassElement globalizedElement = new ClosureClassElement(
-        node, closureName, compiler, element, element.compilationUnit);
+        node, closureName, compiler, element, element.getCompilationUnit());
     FunctionElement callElement =
         new SynthesizedCallMethodElementX(Compiler.CALL_OPERATOR_NAME,
                                           element,
@@ -763,8 +743,8 @@ class ClosureTranslator extends Visitor {
     } else {
       outermostElement = element;
       Element thisElement = null;
-      if (element.isInstanceMember || element.isGenerativeConstructor) {
-        thisElement = new ThisElement(element);
+      if (element.isInstanceMember() || element.isGenerativeConstructor()) {
+        thisElement = new ThisElement(element, compiler.types.dynamicType);
       }
       closureData = new ClosureClassMap(null, null, null, thisElement);
     }
@@ -783,7 +763,7 @@ class ClosureTranslator extends Visitor {
         declareLocal(element);
       }
 
-      if (currentElement.isFactoryConstructor &&
+      if (currentElement.isFactoryConstructor() &&
           compiler.backend.classNeedsRti(currentElement.enclosingElement)) {
         // Declare the type parameters in the scope. Generative
         // constructors just use 'this'.
@@ -830,7 +810,7 @@ class ClosureTranslator extends Visitor {
   visitFunctionExpression(FunctionExpression node) {
     Element element = elements[node];
 
-    if (element.isParameter) {
+    if (element.isParameter()) {
       // TODO(ahe): This is a hack. This method should *not* call
       // visitChildren.
       return node.name.accept(this);

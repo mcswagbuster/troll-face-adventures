@@ -226,8 +226,9 @@ class ParameterAssignments extends IterableBase<TypeInformation> {
 class ElementTypeInformation extends ApplyableTypeInformation  {
   final Element element;
 
-  /// Marker to disable inference for closures in [handleSpecialCases].
-  bool disableInferenceForClosures = true;
+  // Marker to disable [handleSpecialCases]. For example, parameters
+  // of closures that are traced can be inferred.
+  bool disableHandleSpecialCases = false;
 
   /**
    * If [element] is a function, [closurizedCount] is the number of
@@ -250,8 +251,8 @@ class ElementTypeInformation extends ApplyableTypeInformation  {
 
   factory ElementTypeInformation(Element element) {
     var assignments = null;
-    if (element.enclosingElement.isInstanceMember &&
-        (element.isParameter || element.isFieldParameter)) {
+    if (element.enclosingElement.isInstanceMember() &&
+        (element.isParameter() || element.isFieldParameter())) {
       assignments = new ParameterAssignments();
     }
     return new ElementTypeInformation.internal(element, assignments);
@@ -292,19 +293,19 @@ class ElementTypeInformation extends ApplyableTypeInformation  {
 
   TypeMask handleSpecialCases(TypeGraphInferrerEngine inferrer) {
     if (abandonInferencing) return type;
+    if (disableHandleSpecialCases) return null;
 
-    if (element.isParameter) {
+    if (element.isParameter()) {
       Element enclosing = element.enclosingElement;
-      if (Elements.isLocal(enclosing) && disableInferenceForClosures) {
+      if (Elements.isLocal(enclosing)) {
         // Do not infer types for parameters of closures. We do not
         // clear the assignments in case the closure is successfully
         // traced.
         giveUp(inferrer, clearAssignments: false);
         return type;
-      } else if (enclosing.isInstanceMember &&
+      } else if (enclosing.isInstanceMember() &&
                  (enclosing.name == Compiler.NO_SUCH_METHOD ||
-                  (enclosing.name == Compiler.CALL_OPERATOR_NAME &&
-                   disableInferenceForClosures))) {
+                  enclosing.name == Compiler.CALL_OPERATOR_NAME)) {
         // Do not infer types for parameters of [noSuchMethod] and
         // [call] instance methods.
         giveUp(inferrer);
@@ -319,9 +320,9 @@ class ElementTypeInformation extends ApplyableTypeInformation  {
         return type;
       }
     }
-    if (element.isField ||
-        element.isParameter ||
-        element.isFieldParameter) {
+    if (element.isField() ||
+        element.isParameter() ||
+        element.isFieldParameter()) {
       if (!inferrer.compiler.backend.canBeUsedForGlobalOptimizations(element)) {
         // Do not infer types for fields and parameters being assigned
         // by synthesized calls.
@@ -334,13 +335,13 @@ class ElementTypeInformation extends ApplyableTypeInformation  {
       // also give up on inferring to make sure this element never
       // goes in the work queue.
       giveUp(inferrer);
-      if (element.isField) {
+      if (element.isField()) {
         return inferrer.typeOfNativeBehavior(
             native.NativeBehavior.ofFieldLoad(element, inferrer.compiler)).type;
       } else {
-        assert(element.isFunction ||
-               element.isGetter ||
-               element.isSetter);
+        assert(element.isFunction() ||
+               element.isGetter() ||
+               element.isSetter());
         TypedElement typedElement = element;
         var elementType = typedElement.type;
         if (elementType.kind != TypeKind.FUNCTION) {
@@ -370,15 +371,15 @@ class ElementTypeInformation extends ApplyableTypeInformation  {
                                  TypeGraphInferrerEngine inferrer) {
     Compiler compiler = inferrer.compiler;
     // Parameters are being explicitly checked in the method.
-    if (element.isParameter || element.isFieldParameter) return mask;
+    if (element.isParameter() || element.isFieldParameter()) return mask;
     if (!compiler.trustTypeAnnotations && !compiler.enableTypeAssertions) {
       return mask;
     }
-    if (element.isGenerativeConstructor || element.isSetter) return mask;
+    if (element.isGenerativeConstructor() || element.isSetter()) return mask;
     var type = element.computeType(compiler);
-    if (element.isFunction ||
-        element.isGetter ||
-        element.isFactoryConstructor) {
+    if (element.isFunction() ||
+        element.isGetter() ||
+        element.isFactoryConstructor()) {
       type = type.returnType;
     }
     return new TypeMaskSystem(compiler).narrowType(mask, type);
@@ -397,22 +398,23 @@ class ElementTypeInformation extends ApplyableTypeInformation  {
     return visitor.visitElementTypeInformation(this);
   }
 
-  Element get owner => element.outermostEnclosingMemberOrTopLevel;
+  Element get owner => element.getOutermostEnclosingMemberOrTopLevel();
 
   bool hasStableType(TypeGraphInferrerEngine inferrer) {
     // The number of assignments of parameters of instance methods is
     // not stable. Therefore such a parameter cannot be stable.
-    if (element.isParameter && element.enclosingElement.isInstanceMember) {
+    if (element.isParameter() && element.enclosingElement.isInstanceMember()) {
       return false;
     }
 
     // The number of assignments of non-final fields is
     // not stable. Therefore such a field cannot be stable.
-    if (element.isField && !(element.isConst || element.isFinal)) {
+    if (element.isField() &&
+        !(element.modifiers.isConst() || element.modifiers.isFinal())) {
       return false;
     }
 
-    if (element.isFunction) return false;
+    if (element.isFunction()) return false;
 
     return super.hasStableType(inferrer);
   }
@@ -562,14 +564,6 @@ class DynamicCallSiteTypeInformation extends CallSiteTypeInformation {
     }
   }
 
-  bool get targetsIncludeNoSuchMethod {
-    return targets.any((Element e) {
-      return e is FunctionElement &&
-             e.isInstanceMember &&
-             e.name == Compiler.NO_SUCH_METHOD;
-    });
-  }
-
   /**
    * We optimize certain operations on the [int] class because we know
    * more about their return type than the actual Dart code. For
@@ -585,7 +579,7 @@ class DynamicCallSiteTypeInformation extends CallSiteTypeInformation {
     if (!selector.mask.containsOnlyInt(compiler)) {
       return null;
     }
-    if (!selector.isCall && !selector.isOperator) return null;
+    if (!selector.isCall() && !selector.isOperator()) return null;
     if (!arguments.named.isEmpty) return null;
     if (arguments.positional.length > 1) return null;
 
@@ -690,10 +684,10 @@ class DynamicCallSiteTypeInformation extends CallSiteTypeInformation {
         return const TypeMask.nonNullEmpty();
       }
 
-      if (inferrer.returnsListElementType(typedSelector)) {
+      if (returnsListElementType(typedSelector)) {
         ContainerTypeMask mask = receiver.type;
         return mask.elementType;
-      } else if (inferrer.returnsMapValueType(typedSelector)) {
+      } else if (returnsMapValueType(typedSelector)) {
         if (typedSelector.mask.isDictionary &&
             arguments.positional[0].type.isValue) {
           DictionaryTypeMask mask = typedSelector.mask;
@@ -1065,9 +1059,7 @@ class MapTypeInformation extends TypeInformation {
   bool analyzed = false;
 
   // Set to false if a statically unknown key flows into this map.
-  bool _allKeysAreStrings = true;
-
-  bool get inDictionaryMode => !bailedOut && _allKeysAreStrings;
+  bool isDictionary = true;
 
   MapTypeInformation(this.initialType, this.keyType, this.valueType) {
     keyType.addUser(this);
@@ -1079,13 +1071,13 @@ class MapTypeInformation extends TypeInformation {
                                      TypeInformation value,
                                      [bool nonNull = false]) {
     TypeInformation newInfo = null;
-    if (_allKeysAreStrings && key is StringLiteralTypeInformation) {
+    if (isDictionary && key is StringLiteralTypeInformation) {
       String keyString = key.asString();
       typeInfoMap.putIfAbsent(keyString,
           () => newInfo = new ValueInMapTypeInformation(null, nonNull));
       typeInfoMap[keyString].addAssignment(value);
     } else {
-      _allKeysAreStrings = false;
+      isDictionary = false;
       typeInfoMap.clear();
     }
     keyType.addAssignment(key);
@@ -1095,10 +1087,10 @@ class MapTypeInformation extends TypeInformation {
     return newInfo;
   }
 
-  List<TypeInformation> addMapAssignment(MapTypeInformation other) {
+  List<TypeInformation> addMapAssignment(MapTypeInformation map) {
     List<TypeInformation> newInfos = <TypeInformation>[];
-    if (_allKeysAreStrings && other.inDictionaryMode) {
-      other.typeInfoMap.forEach((keyString, value) {
+    if (map.isDictionary) {
+      map.typeInfoMap.forEach((keyString, value) {
         typeInfoMap.putIfAbsent(keyString, () {
           TypeInformation newInfo = new ValueInMapTypeInformation(null, false);
           newInfos.add(newInfo);
@@ -1106,12 +1098,9 @@ class MapTypeInformation extends TypeInformation {
         });
         typeInfoMap[keyString].addAssignment(value);
       });
-    } else {
-      _allKeysAreStrings = false;
-      typeInfoMap.clear();
     }
-    keyType.addAssignment(other.keyType);
-    valueType.addAssignment(other.valueType);
+    keyType.addAssignment(map.keyType);
+    valueType.addAssignment(map.valueType);
 
     return newInfos;
   }
@@ -1130,7 +1119,7 @@ class MapTypeInformation extends TypeInformation {
   }
 
   TypeMask toTypeMask(TypeGraphInferrerEngine inferrer) {
-    if (inDictionaryMode) {
+    if (isDictionary) {
       Map<String, TypeMask> mappings = new Map<String, TypeMask>();
       for (var key in typeInfoMap.keys) {
         mappings[key] = typeInfoMap[key].type;
@@ -1151,10 +1140,9 @@ class MapTypeInformation extends TypeInformation {
   }
 
   TypeMask refine(TypeGraphInferrerEngine inferrer) {
-    if (type.isDictionary != inDictionaryMode) {
+    if (!bailedOut && type.isDictionary != isDictionary) {
       return toTypeMask(inferrer);
-    } else if (type.isDictionary) {
-      assert(inDictionaryMode);
+    } else if (!bailedOut && type.isDictionary) {
       DictionaryTypeMask mask = type;
       for (var key in typeInfoMap.keys) {
         TypeInformation value = typeInfoMap[key];

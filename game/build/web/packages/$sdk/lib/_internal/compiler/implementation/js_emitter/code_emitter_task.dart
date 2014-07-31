@@ -33,8 +33,6 @@ class CodeEmitterTask extends CompilerTask {
   final Set<ClassElement> neededClasses = new Set<ClassElement>();
   final Map<OutputUnit, List<ClassElement>> outputClassLists =
       new Map<OutputUnit, List<ClassElement>>();
-  final Map<OutputUnit, List<Constant>> outputConstantLists =
-      new Map<OutputUnit, List<Constant>>();
   final List<ClassElement> nativeClasses = <ClassElement>[];
   final Map<String, String> mangledFieldNames = <String, String>{};
   final Map<String, String> mangledGlobalFieldNames = <String, String>{};
@@ -106,9 +104,6 @@ class CodeEmitterTask extends CompilerTask {
     typeTestEmitter.task = this;
     interceptorEmitter.task = this;
     metadataEmitter.task = this;
-    // TODO(18886): Remove this call (and the show in the import) once the
-    // memory-leak in the VM is fixed.
-    templateManager.clear();
   }
 
   void addComment(String comment, CodeBuffer buffer) {
@@ -140,8 +135,6 @@ class CodeEmitterTask extends CompilerTask {
   String get lazyInitializerName
       => '${namer.isolateName}.\$lazy';
   String get initName => 'init';
-  String get makeConstListProperty
-      => namer.getMappedInstanceName('makeConstantList');
 
   jsAst.FunctionDeclaration get generateAccessorFunction {
     const RANGE1_SIZE = RANGE1_LAST - RANGE1_FIRST + 1;
@@ -526,7 +519,7 @@ class CodeEmitterTask extends CompilerTask {
     // isolateProperties themselves.
     return js('''
       function (oldIsolate) {
-        var isolateProperties = oldIsolate.#;
+        var isolateProperties = oldIsolate.${namer.isolatePropertiesName};
         function Isolate() {
           var hasOwnProperty = Object.prototype.hasOwnProperty;
           for (var staticName in isolateProperties)
@@ -541,16 +534,14 @@ class CodeEmitterTask extends CompilerTask {
         }
         Isolate.prototype = oldIsolate.prototype;
         Isolate.prototype.constructor = Isolate;
-        Isolate.# = isolateProperties;
+        Isolate.${namer.isolatePropertiesName} = isolateProperties;
         if (#)
-          Isolate.# = oldIsolate.#;
+          Isolate.$finishClassesProperty = oldIsolate.$finishClassesProperty;
         if (#)
-          Isolate.# = oldIsolate.#;
+          Isolate.makeConstantList = oldIsolate.makeConstantList;
         return Isolate;
       }''',
-        [namer.isolatePropertiesName, namer.isolatePropertiesName,
-         needsDefineClass, finishClassesProperty, finishClassesProperty,
-         hasMakeConstantList, makeConstListProperty, makeConstListProperty ]);
+        [ needsDefineClass, hasMakeConstantList ]);
   }
 
   jsAst.Fun get lazyInitializerFunction {
@@ -626,7 +617,7 @@ class CodeEmitterTask extends CompilerTask {
 
   /// In minified mode we want to keep the name for the most common core types.
   bool _isNativeTypeNeedingReflectionName(Element element) {
-    if (!element.isClass) return false;
+    if (!element.isClass()) return false;
     return (element == compiler.intClass ||
             element == compiler.doubleClass ||
             element == compiler.numClass ||
@@ -667,8 +658,8 @@ class CodeEmitterTask extends CompilerTask {
 
   String getReflectionNameInternal(elementOrSelector, String mangledName) {
     String name = elementOrSelector.name;
-    if (elementOrSelector.isGetter) return name;
-    if (elementOrSelector.isSetter) {
+    if (elementOrSelector.isGetter()) return name;
+    if (elementOrSelector.isSetter()) {
       if (!mangledName.startsWith(namer.setterPrefix)) return '$name=';
       String base = mangledName.substring(namer.setterPrefix.length);
       String getter = '${namer.getterPrefix}$base';
@@ -679,15 +670,15 @@ class CodeEmitterTask extends CompilerTask {
       // marking the function as invokable by reflection.
       return '$name=';
     }
-    if (elementOrSelector is Element && elementOrSelector.isClosure) {
+    if (elementOrSelector is Element && elementOrSelector.isClosure()) {
       // Closures are synthesized and their name might conflict with existing
       // globals. Assign an illegal name, and make sure they don't clash
       // with each other.
       return " $mangledName";
     }
     if (elementOrSelector is Selector
-        || elementOrSelector.isFunction
-        || elementOrSelector.isConstructor) {
+        || elementOrSelector.isFunction()
+        || elementOrSelector.isConstructor()) {
       int requiredParameterCount;
       int optionalParameterCount;
       String namedArguments = '';
@@ -699,7 +690,7 @@ class CodeEmitterTask extends CompilerTask {
         namedArguments = namedParametersAsReflectionNames(selector);
       } else {
         FunctionElement function = elementOrSelector;
-        if (function.isConstructor) {
+        if (function.isConstructor()) {
           isConstructor = true;
           name = Elements.reconstructConstructorName(function);
         }
@@ -713,7 +704,7 @@ class CodeEmitterTask extends CompilerTask {
           }
           Selector selector = new Selector.call(
               function.name,
-              function.library,
+              function.getLibrary(),
               requiredParameterCount,
               names);
           namedArguments = namedParametersAsReflectionNames(selector);
@@ -735,9 +726,9 @@ class CodeEmitterTask extends CompilerTask {
       return (isConstructor) ? 'new $suffix' : suffix;
     }
     Element element = elementOrSelector;
-    if (element.isGenerativeConstructorBody) {
+    if (element.isGenerativeConstructorBody()) {
       return null;
-    } else if (element.isClass) {
+    } else if (element.isClass()) {
       ClassElement cls = element;
       if (cls.isUnnamedMixinApplication) return null;
       return cls.name;
@@ -810,6 +801,7 @@ class CodeEmitterTask extends CompilerTask {
     unneededClasses.add(backend.jsUInt32Class);
     unneededClasses.add(backend.jsUInt31Class);
     unneededClasses.add(backend.jsPositiveIntClass);
+    unneededClasses.add(compiler.dynamicClass);
 
     return (ClassElement cls) => !unneededClasses.contains(cls);
   }
@@ -827,7 +819,7 @@ class CodeEmitterTask extends CompilerTask {
 
   void emitStaticFunctions() {
     bool isStaticFunction(Element element) =>
-        !element.isInstanceMember && !element.isField;
+        !element.isInstanceMember() && !element.isField();
 
     Iterable<Element> elements =
         backend.generatedCode.keys.where(isStaticFunction);
@@ -856,7 +848,6 @@ class CodeEmitterTask extends CompilerTask {
                constantEmitter.referenceInInitializationContext(initialValue)]);
         buffer.write(jsAst.prettyPrint(init, compiler));
         buffer.write('$N');
-        compiler.dumpInfoTask.registerGeneratedCode(element, init);
       });
     }
   }
@@ -899,9 +890,26 @@ class CodeEmitterTask extends CompilerTask {
   }
 
   void emitCompileTimeConstants(CodeBuffer buffer, OutputUnit outputUnit) {
-    List<Constant> constants = outputConstantLists[outputUnit];
-    if (constants == null) return;
+    JavaScriptConstantCompiler handler = backend.constants;
+    List<Constant> constants = handler.getConstantsForEmission(
+        compareConstants);
+    Set<Constant> outputUnitConstants = null;
+    // TODO(sigurdm): We shouldn't run through all constants for every
+    // outputUnit.
     for (Constant constant in constants) {
+      if (isConstantInlinedOrAlreadyEmitted(constant)) continue;
+      OutputUnit constantUnit =
+          compiler.deferredLoadTask.outputUnitForConstant(constant);
+      if (constantUnit != outputUnit && constantUnit != null) continue;
+      if (outputUnit != compiler.deferredLoadTask.mainOutputUnit
+          && constantUnit == null) {
+        // The back-end introduces some constants, like "InterceptorConstant" or
+        // some list constants. They are emitted in the main output-unit, and
+        // ignored otherwise.
+        // TODO(sigurdm): We should track those constants.
+        continue;
+      }
+
       String name = namer.constantName(constant);
       if (constant.isList) emitMakeConstantListIfNotEmitted(buffer);
       jsAst.Expression init = js('#.# = #',
@@ -948,28 +956,28 @@ class CodeEmitterTask extends CompilerTask {
   void emitMakeConstantListIfNotEmitted(CodeBuffer buffer) {
     if (hasMakeConstantList) return;
     hasMakeConstantList = true;
-    buffer.write(
-        jsAst.prettyPrint(
-            js.statement(r'''#.# = function(list) {
-                                     list.immutable$list = #;
-                                     list.fixed$length = #;
-                                     return list;
-                                   }''',
-                         [namer.isolateName, makeConstListProperty, initName,
-                          initName]),
-            compiler));
-    buffer.write(N);
+    buffer
+        ..write(namer.isolateName)
+        ..write('''.makeConstantList = function(list) {
+  list.immutable\$list = $initName;
+  list.fixed\$length = $initName;
+  return list;
+};
+''');
   }
 
   /// Returns the code equivalent to:
   ///   `function(args) { $.startRootIsolate(X.main$closure(), args); }`
-  jsAst.Expression buildIsolateSetupClosure(Element appMain,
-                                            Element isolateMain) {
+  String buildIsolateSetupClosure(CodeBuffer buffer,
+                                  Element appMain,
+                                  Element isolateMain) {
     jsAst.Expression mainAccess = namer.isolateStaticClosureAccess(appMain);
     // Since we pass the closurized version of the main method to
     // the isolate method, we must make sure that it exists.
-    return js('function(a){ #(#, a); }',
-        [namer.elementAccess(isolateMain), mainAccess]);
+    jsAst.Expression setup = js('function(a){ #(#, a); }',
+            [namer.elementAccess(isolateMain), mainAccess]);
+
+    return '(' + jsAst.prettyPrint(setup, compiler).getText() + ')';
   }
 
   /**
@@ -1023,13 +1031,14 @@ class CodeEmitterTask extends CompilerTask {
   emitMain(CodeBuffer buffer) {
     if (compiler.isMockCompilation) return;
     Element main = compiler.mainFunction;
-    jsAst.Expression mainCallClosure = null;
+    String mainCallClosure = null;
     if (compiler.hasIsolateSupport()) {
       Element isolateMain =
         compiler.isolateHelperLibrary.find(Compiler.START_ROOT_ISOLATE);
-      mainCallClosure = buildIsolateSetupClosure(main, isolateMain);
+      mainCallClosure = buildIsolateSetupClosure(buffer, main, isolateMain);
     } else {
-      mainCallClosure = namer.elementAccess(main);
+      // TODO(sra): Replace with AST.
+      mainCallClosure = '${namer.isolateAccess(main)}';
     }
 
     if (backend.needToInitializeIsolateAffinityTag) {
@@ -1051,8 +1060,8 @@ class CodeEmitterTask extends CompilerTask {
     // onload event of all script tags and getting the first script which
     // finishes. Since onload is called immediately after execution this should
     // not substantially change execution order.
-    jsAst.Statement invokeMain = js.statement('''
-(function (callback) {
+    buffer.write('''
+;(function (callback) {
   if (typeof document === "undefined") {
     callback(null);
     return;
@@ -1076,38 +1085,12 @@ class CodeEmitterTask extends CompilerTask {
   init.currentScript = currentScript;
 
   if (typeof dartMainRunner === "function") {
-    dartMainRunner(#, []);
+    dartMainRunner(${mainCallClosure}, []);
   } else {
-    #([]);
+    ${mainCallClosure}([]);
   }
-})$N''', [mainCallClosure, mainCallClosure]);
-
-    buffer.write(';');
-    buffer.write(jsAst.prettyPrint(invokeMain, compiler));
-    buffer.write(N);
+})$N''');
     addComment('END invoke [main].', buffer);
-  }
-
-  /**
-   * Compute all the constants that must be emitted.
-   */
-  void computeNeededConstants() {
-    JavaScriptConstantCompiler handler = backend.constants;
-    List<Constant> constants = handler.getConstantsForEmission(
-        compareConstants);
-    for (Constant constant in constants) {
-      if (isConstantInlinedOrAlreadyEmitted(constant)) continue;
-      OutputUnit constantUnit =
-          compiler.deferredLoadTask.outputUnitForConstant(constant);
-      if (constantUnit == null) {
-        // The back-end introduces some constants, like "InterceptorConstant" or
-        // some list constants. They are emitted in the main output-unit.
-        // TODO(sigurdm): We should track those constants.
-        constantUnit = compiler.deferredLoadTask.mainOutputUnit;
-      }
-      outputConstantLists.putIfAbsent(constantUnit, () => new List<Constant>())
-          .add(constant);
-    }
   }
 
   /**
@@ -1150,7 +1133,7 @@ class CodeEmitterTask extends CompilerTask {
       String noSuchMethodName = Compiler.NO_SUCH_METHOD;
       Selector noSuchMethodSelector = compiler.noSuchMethodSelector;
       for (ClassElement element in neededClasses) {
-        if (!element.isNative) continue;
+        if (!element.isNative()) continue;
         Element member = element.lookupLocalMember(noSuchMethodName);
         if (member == null) continue;
         if (noSuchMethodSelector.applies(member, compiler)) {
@@ -1203,7 +1186,7 @@ class CodeEmitterTask extends CompilerTask {
       } else if (Elements.isNativeOrExtendsNative(element)) {
         // For now, native classes and related classes cannot be deferred.
         nativeClasses.add(element);
-        if (!element.isNative) {
+        if (!element.isNative()) {
           assert(invariant(element,
                            !compiler.deferredLoadTask.isDeferred(element)));
           outputClassLists.putIfAbsent(compiler.deferredLoadTask.mainOutputUnit,
@@ -1233,40 +1216,44 @@ class CodeEmitterTask extends CompilerTask {
   }
 
   void emitConvertToFastObjectFunction() {
-    List<jsAst.Statement> debugCode = <jsAst.Statement>[];
+    // Create an instance that uses 'properties' as prototype. This should make
+    // 'properties' a fast object.
+    mainBuffer.add(r'''function convertToFastObject(properties) {
+  function MyClass() {};
+  MyClass.prototype = properties;
+  new MyClass();
+''');
     if (DEBUG_FAST_OBJECTS) {
-      debugCode.add(js.statement(r'''
-        // The following only works on V8 when run with option
-        // "--allow-natives-syntax".  We use'new Function' because the
-         // miniparser does not understand V8 native syntax.
-        if (typeof print === "function") {
-          var HasFastProperties =
-            new Function("a", "return %HasFastProperties(a)");
-          print("Size of global object: "
+      ClassElement primitives =
+          compiler.findHelper('Primitives');
+      FunctionElement printHelper =
+          compiler.lookupElementIn(
+              primitives, 'printString');
+      // TODO(sra): Replace with AST.
+      String printHelperName = namer.isolateAccess(printHelper);
+      mainBuffer.add('''
+// The following only works on V8 when run with option "--allow-natives-syntax".
+if (typeof $printHelperName === "function") {
+  $printHelperName("Size of global object: "
                    + String(Object.getOwnPropertyNames(properties).length)
-                   + ", fast properties " + HasFastProperties(properties));
-        }'''));
+                   + ", fast properties " + %HasFastProperties(properties));
+}
+''');
     }
-
-    jsAst.Statement convertToFastObject = js.statement(r'''
-      function convertToFastObject(properties) {
-        // Create an instance that uses 'properties' as prototype. This should
-        // make 'properties' a fast object.
-        function MyClass() {};
-        MyClass.prototype = properties;
-        new MyClass();
-        #;
-        return properties;
-      }''', [debugCode]);
-
-    mainBuffer.add(jsAst.prettyPrint(convertToFastObject, compiler));
-    mainBuffer.add(N);
+mainBuffer.add(r'''
+  return properties;
+}
+''');
   }
 
   void writeLibraryDescriptors(LibraryElement library) {
     var uri = library.canonicalUri;
-    if (uri.scheme == 'file' && compiler.outputUri != null) {
-      uri = relativize(compiler.outputUri, library.canonicalUri, false);
+    if (uri.scheme == 'file' && compiler.sourceMapUri != null) {
+      // TODO(ahe): It is a hack to use compiler.sourceMapUri
+      // here.  It should be relative to the main JavaScript
+      // output file.
+      uri = relativize(
+          compiler.sourceMapUri, library.canonicalUri, false);
     }
     Map<OutputUnit, ClassBuilder> descriptors =
         elementDescriptors[library];
@@ -1388,7 +1375,7 @@ class CodeEmitterTask extends CompilerTask {
         for (Element element in elementDescriptors.keys) {
           // TODO(ahe): Should iterate over all libraries.  Otherwise, we will
           // not see libraries that only have fields.
-          if (element.isLibrary) {
+          if (element.isLibrary()) {
             LibraryElement library = element;
             ClassBuilder builder = new ClassBuilder(namer);
             if (classEmitter.emitFields(
@@ -1446,7 +1433,7 @@ class CodeEmitterTask extends CompilerTask {
             Elements.sortedByPosition(elementDescriptors.keys);
 
         Iterable<Element> pendingStatics = sortedElements.where((element) {
-            return !element.isLibrary &&
+            return !element.isLibrary() &&
                 elementDescriptors[element].values.any((descriptor) =>
                     descriptor != null);
         });
@@ -1456,7 +1443,7 @@ class CodeEmitterTask extends CompilerTask {
                 element, MessageKind.GENERIC, {'text': 'Pending statics.'}));
 
         for (LibraryElement library in sortedElements.where((element) =>
-            element.isLibrary)) {
+            element.isLibrary())) {
           writeLibraryDescriptors(library);
           elementDescriptors[library] = const {};
         }
@@ -1477,7 +1464,6 @@ class CodeEmitterTask extends CompilerTask {
       // which may need getInterceptor (and one-shot interceptor) methods, so
       // we have to make sure that [emitGetInterceptorMethods] and
       // [emitOneShotInterceptors] have been called.
-      computeNeededConstants();
       emitCompileTimeConstants(mainBuffer, mainOutputUnit);
 
       // Write a javascript mapping from Deferred import load ids (derrived from
@@ -1525,40 +1511,44 @@ class CodeEmitterTask extends CompilerTask {
         mainBuffer.add('$globalObject = convertToFastObject($globalObject)$N');
       }
       if (DEBUG_FAST_OBJECTS) {
-        mainBuffer.add(r'''
-          // The following only works on V8 when run with option
-          // "--allow-natives-syntax".  We use'new Function' because the
-          // miniparser does not understand V8 native syntax.
-          if (typeof print === "function") {
-            var HasFastProperties =
-              new Function("a", "return %HasFastProperties(a)");
-            print("Size of global helper object: "
+        ClassElement primitives =
+            compiler.findHelper('Primitives');
+        FunctionElement printHelper =
+            compiler.lookupElementIn(
+                primitives, 'printString');
+        // TODO(sra): Replace with AST.
+        String printHelperName = namer.isolateAccess(printHelper);
+
+        mainBuffer.add('''
+// The following only works on V8 when run with option "--allow-natives-syntax".
+if (typeof $printHelperName === "function") {
+  $printHelperName("Size of global helper object: "
                    + String(Object.getOwnPropertyNames(H).length)
-                   + ", fast properties " + HasFastProperties(H));
-            print("Size of global platform object: "
+                   + ", fast properties " + %HasFastProperties(H));
+  $printHelperName("Size of global platform object: "
                    + String(Object.getOwnPropertyNames(P).length)
-                   + ", fast properties " + HasFastProperties(P));
-            print("Size of global dart:html object: "
+                   + ", fast properties " + %HasFastProperties(P));
+  $printHelperName("Size of global dart:html object: "
                    + String(Object.getOwnPropertyNames(W).length)
-                   + ", fast properties " + HasFastProperties(W));
-            print("Size of isolate properties object: "
-                   + String(Object.getOwnPropertyNames($).length)
-                   + ", fast properties " + HasFastProperties($));
-           print("Size of constant object: "
+                   + ", fast properties " + %HasFastProperties(W));
+  $printHelperName("Size of isolate properties object: "
+                   + String(Object.getOwnPropertyNames(\$).length)
+                   + ", fast properties " + %HasFastProperties(\$));
+  $printHelperName("Size of constant object: "
                    + String(Object.getOwnPropertyNames(C).length)
-                   + ", fast properties " + HasFastProperties(C));
-           var names = Object.getOwnPropertyNames($);
-           for (var i = 0; i < names.length; i++) {
-             print("$." + names[i]);
-           }
-         }
+                   + ", fast properties " + %HasFastProperties(C));
+  var names = Object.getOwnPropertyNames(\$);
+  for (var i = 0; i < names.length; i++) {
+    $printHelperName("\$." + names[i]);
+  }
+}
 ''');
         for (String object in Namer.userGlobalObjects) {
         mainBuffer.add('''
-          if (typeof print === "function") {
-             print("Size of $object: "
+if (typeof $printHelperName === "function") {
+  $printHelperName("Size of $object: "
                    + String(Object.getOwnPropertyNames($object).length)
-                   + ", fast properties " + HasFastProperties($object));
+                   + ", fast properties " + %HasFastProperties($object));
 }
 ''');
         }
@@ -1598,7 +1588,7 @@ class CodeEmitterTask extends CompilerTask {
       if (!compiler.useContentSecurityPolicy) {
         mainBuffer.write("""
 {
-  var message =
+  var message = 
       'Deprecation: Automatic generation of output for Content Security\\n' +
       'Policy is deprecated and will be removed with the next development\\n' +
       'release. Use the --csp option to generate CSP restricted output.';
@@ -1655,15 +1645,15 @@ class CodeEmitterTask extends CompilerTask {
   }
 
   ClassBuilder getElementDecriptor(Element element) {
-    Element owner = element.library;
-    if (!element.isTopLevel && !element.isNative) {
+    Element owner = element.getLibrary();
+    if (!element.isTopLevel() && !element.isNative()) {
       // For static (not top level) elements, record their code in a buffer
       // specific to the class. For now, not supported for native classes and
       // native elements.
       ClassElement cls =
-          element.enclosingClassOrCompilationUnit.declaration;
+          element.getEnclosingClassOrCompilationUnit().declaration;
       if (compiler.codegenWorld.instantiatedClasses.contains(cls)
-          && !cls.isNative) {
+          && !cls.isNative()) {
         owner = cls;
       }
     }

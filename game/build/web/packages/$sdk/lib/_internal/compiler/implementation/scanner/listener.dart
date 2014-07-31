@@ -799,7 +799,7 @@ class ElementListener extends Listener {
   bool allowLibraryTags() {
     // Library tags are only allowed in the library file itself, not
     // in sourced files.
-    LibraryElement library = compilationUnitElement.library;
+    LibraryElement library = compilationUnitElement.getLibrary();
     return !compilationUnitElement.hasMembers
       && library.entryCompilationUnit == compilationUnitElement;
   }
@@ -898,7 +898,7 @@ class ElementListener extends Listener {
     NodeList typeParameters = popNode();
     Identifier name = popNode();
     int id = idGenerator();
-    PartialClassElement element = new PartialClassElement(
+    ClassElement element = new PartialClassElement(
         name.source, beginToken, endToken, compilationUnitElement, id);
     element.nativeTagInfo = nativeTagInfo;
     pushElement(element);
@@ -1219,7 +1219,7 @@ class ElementListener extends Listener {
     if (!allowLibraryTags()) {
       recoverableError(tag, 'Library tags not allowed here.');
     }
-    compilationUnitElement.implementationLibrary.addTag(tag, listener);
+    compilationUnitElement.getImplementationLibrary().addTag(tag, listener);
   }
 
   void pushNode(Node node) {
@@ -2072,78 +2072,47 @@ class NodeListener extends ElementListener {
   }
 }
 
-abstract class PartialFunctionMixin implements FunctionElement {
-  FunctionExpression cachedNode;
-  Modifiers get modifiers;
-  Token beginToken;
-  Token getOrSet;
-  Token endToken;
+class PartialFunctionElement extends FunctionElementX {
+  final Token beginToken;
+  final Token getOrSet;
+  final Token endToken;
 
   /**
    * The position is computed in the constructor using [findMyName]. Computing
    * it on demand fails in case tokens are GC'd.
    */
-  Token _position;
+  final Token _position;
 
-  void init(Token beginToken, Token getOrSet, Token endToken) {
-    this.beginToken = beginToken;
-    this.getOrSet = getOrSet;
-    this.endToken = endToken;
-    _position = ElementX.findNameToken(
-        beginToken,
-        modifiers.isFactory ||
-          identical(kind, ElementKind.GENERATIVE_CONSTRUCTOR),
-        name, enclosingElement.name);
-  }
-
-  FunctionExpression get node {
-    assert(invariant(this, cachedNode != null,
-        message: "Node has not been computed for $this."));
-    return cachedNode;
-  }
+  PartialFunctionElement(String name,
+                         Token beginToken,
+                         this.getOrSet,
+                         this.endToken,
+                         ElementKind kind,
+                         Modifiers modifiers,
+                         Element enclosing,
+                         bool hasNoBody)
+    : super(name, kind, modifiers, enclosing, hasNoBody),
+      beginToken = beginToken,
+      _position = ElementX.findNameToken(
+          beginToken,
+          modifiers.isFactory() ||
+            identical(kind, ElementKind.GENERATIVE_CONSTRUCTOR),
+          name, enclosing.name);
 
   FunctionExpression parseNode(DiagnosticListener listener) {
     if (cachedNode != null) return cachedNode;
     parseFunction(Parser p) {
-      if (isMember && modifiers.isFactory) {
+      if (isMember() && modifiers.isFactory()) {
         p.parseFactoryMethod(beginToken);
       } else {
         p.parseFunction(beginToken, getOrSet);
       }
     }
-    cachedNode = parse(listener, compilationUnit, parseFunction);
+    cachedNode = parse(listener, getCompilationUnit(), parseFunction);
     return cachedNode;
   }
 
-  Token get position => _position;
-}
-
-class PartialFunctionElement extends FunctionElementX
-    with PartialFunctionMixin {
-  PartialFunctionElement(String name,
-                         Token beginToken,
-                         Token getOrSet,
-                         Token endToken,
-                         ElementKind kind,
-                         Modifiers modifiers,
-                         Element enclosing,
-                         bool hasNoBody)
-      : super(name, kind, modifiers, enclosing, hasNoBody) {
-    init(beginToken, getOrSet, endToken);
-  }
-}
-
-class PartialConstructorElement extends ConstructorElementX
-    with PartialFunctionMixin {
-  PartialConstructorElement(String name,
-                            Token beginToken,
-                            Token endToken,
-                            ElementKind kind,
-                            Modifiers modifiers,
-                            Element enclosing)
-      : super(name, kind, modifiers, enclosing) {
-    init(beginToken, null, endToken);
-  }
+  Token position() => _position;
 }
 
 class PartialFieldList extends VariableList {
@@ -2153,18 +2122,18 @@ class PartialFieldList extends VariableList {
   PartialFieldList(Token this.beginToken,
                    Token this.endToken,
                    Modifiers modifiers)
-      : super(modifiers);
+    : super(modifiers);
 
   VariableDefinitions parseNode(Element element, DiagnosticListener listener) {
     if (definitions != null) return definitions;
     listener.withCurrentElement(element, () {
       definitions = parse(listener,
-                          element.compilationUnit,
+                          element.getCompilationUnit(),
                           (p) => p.parseVariablesDeclaration(beginToken));
 
-      if (!definitions.modifiers.isVar &&
-          !definitions.modifiers.isFinal &&
-          !definitions.modifiers.isConst &&
+      if (!definitions.modifiers.isVar() &&
+          !definitions.modifiers.isFinal() &&
+          !definitions.modifiers.isConst() &&
           definitions.type == null) {
         listener.reportError(
             definitions,
@@ -2184,7 +2153,7 @@ class PartialFieldList extends VariableList {
       if (node.type != null) {
         type = compiler.resolver.resolveTypeAnnotation(element, node.type);
       } else {
-        type = const DynamicType();
+        type = compiler.types.dynamicType;
       }
     });
     assert(type != null);
@@ -2201,12 +2170,12 @@ class PartialTypedefElement extends TypedefElementX {
   Node parseNode(DiagnosticListener listener) {
     if (cachedNode != null) return cachedNode;
     cachedNode = parse(listener,
-                       compilationUnit,
+                       getCompilationUnit(),
                        (p) => p.parseTopLevelDeclaration(token));
     return cachedNode;
   }
 
-  Token get position => findMyName(token);
+  Token position() => findMyName(token);
 }
 
 /// A [MetadataAnnotation] which is constructed on demand.
@@ -2230,7 +2199,7 @@ class PartialMetadataAnnotation extends MetadataAnnotationX {
   Node parseNode(DiagnosticListener listener) {
     if (cachedNode != null) return cachedNode;
     Metadata metadata = parse(listener,
-                              annotatedElement.compilationUnit,
+                              annotatedElement.getCompilationUnit(),
                               (p) => p.parseMetadata(beginToken));
     cachedNode = metadata.expression;
     return cachedNode;

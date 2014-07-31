@@ -39,6 +39,7 @@ class _BroadcastSubscription<T> extends _ControllerSubscription<T>
   bool _expectsEvent(int eventId) =>
       (_eventState & _STATE_EVENT_ID) == eventId;
 
+
   void _toggleEventId() {
     _eventState ^= _STATE_EVENT_ID;
   }
@@ -180,7 +181,7 @@ abstract class _BroadcastStreamController<T>
 
   StreamSubscription<T> _subscribe(bool cancelOnError) {
     if (isClosed) {
-      return new _DoneStreamSubscription<T>(_nullDoneHandler);
+      throw new StateError("Subscribing to closed stream");
     }
     StreamSubscription subscription =
         new _BroadcastSubscription<T>(this, cancelOnError);

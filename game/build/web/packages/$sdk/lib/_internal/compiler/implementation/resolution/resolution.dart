@@ -12,24 +12,22 @@ import '../tree/tree.dart';
 import '../elements/elements.dart';
 import '../elements/modelx.dart'
     show BaseClassElementX,
-         ConstructorElementX,
-         ErroneousElementX,
-         FieldParameterElementX,
          FunctionElementX,
+         ErroneousElementX,
+         VariableElementX,
+         FieldParameterElementX,
+         VariableList,
          FunctionSignatureX,
          LabelElementX,
-         LocalFunctionElementX,
-         LocalVariableElementX,
-         MetadataAnnotationX,
+         TargetElementX,
          MixinApplicationElementX,
          ParameterElementX,
-         ParameterMetadataAnnotation,
-         SynthesizedConstructorElementX,
-         TargetElementX,
-         TypedefElementX,
          TypeVariableElementX,
-         VariableElementX,
-         VariableList;
+         TypedefElementX,
+         SynthesizedConstructorElementX,
+         MetadataAnnotationX,
+         ParameterMetadataAnnotation,
+         MetadataContainer;
 import '../util/util.dart';
 
 import 'secret_tree_element.dart' show getTreeElement, setTreeElement;
@@ -38,6 +36,5 @@ import 'class_members.dart' show MembersCreator;
 import '../dart_backend/dart_backend.dart' show DartBackend;
 
 part 'members.dart';
-part 'registry.dart';
 part 'scope.dart';
 part 'signatures.dart';

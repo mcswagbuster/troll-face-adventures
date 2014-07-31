@@ -31,6 +31,7 @@ abstract class NodeVisitor<T> {
   T visitBlob(Blob node);
   T visitLiteralExpression(LiteralExpression node);
   T visitVariableDeclarationList(VariableDeclarationList node);
+  T visitSequence(Sequence node);
   T visitAssignment(Assignment node);
   T visitVariableInitialization(VariableInitialization node);
   T visitConditional(Conditional cond);
@@ -112,6 +113,7 @@ class BaseVisitor<T> implements NodeVisitor<T> {
   T visitLiteralExpression(LiteralExpression node) => visitExpression(node);
   T visitVariableDeclarationList(VariableDeclarationList node)
       => visitExpression(node);
+  T visitSequence(Sequence node) => visitExpression(node);
   T visitAssignment(Assignment node) => visitExpression(node);
   T visitVariableInitialization(VariableInitialization node) {
     if (node.value != null) {
@@ -202,8 +204,6 @@ abstract class Node {
       withPosition(sourcePosition, this.endSourcePosition);
 
   VariableUse asVariableUse() => null;
-
-  bool get isCommaOperator => false;
 
   Statement toStatement() {
     throw new UnsupportedError('toStatement');
@@ -601,6 +601,22 @@ class VariableDeclarationList extends Expression {
   int get precedenceLevel => EXPRESSION;
 }
 
+class Sequence extends Expression {
+  final List<Expression> expressions;
+
+  Sequence(this.expressions);
+
+  accept(NodeVisitor visitor) => visitor.visitSequence(this);
+
+  void visitChildren(NodeVisitor visitor) {
+    for (Expression expr in expressions) expr.accept(visitor);
+  }
+
+  Sequence _clone() => new Sequence(expressions);
+
+  int get precedenceLevel => EXPRESSION;
+}
+
 class Assignment extends Expression {
   final Expression leftHandSide;
   final String op;         // Null, if the assignment is not compound.
@@ -699,8 +715,6 @@ class Binary extends Expression {
     left.accept(visitor);
     right.accept(visitor);
   }
-
-  bool get isCommaOperator => op == ',';
 
   int get precedenceLevel {
     // TODO(floitsch): switch to constant map.

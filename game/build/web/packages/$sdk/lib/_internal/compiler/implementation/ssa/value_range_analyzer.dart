@@ -670,15 +670,9 @@ class SsaValueRangeAnalyzer extends HBaseVisitor implements OptimizationPhase {
     return range;
   }
 
-  Range visitConstant(HConstant hConstant) {
-    if (!hConstant.isInteger(compiler)) return info.newUnboundRange();
-    Constant constant = hConstant.constant;
-    NumConstant constantNum;
-    if (constant is DeferredConstant) {
-      constantNum = constant.referenced;
-    } else {
-      constantNum = constant;
-    }
+  Range visitConstant(HConstant constant) {
+    if (!constant.isInteger(compiler)) return info.newUnboundRange();
+    NumConstant constantNum = constant.constant;
     if (constantNum.isMinusZero) constantNum = new IntConstant(0);
     Value value = info.newIntValue(constantNum.value);
     return info.newNormalizedRange(value, value);

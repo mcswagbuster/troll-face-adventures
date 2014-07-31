@@ -184,13 +184,6 @@ class HGraph {
     return result;
   }
 
-  HConstant addDeferredConstant(Constant constant, PrefixElement prefix,
-                                Compiler compiler) {
-    Constant wrapper = new DeferredConstant(constant, prefix);
-    compiler.deferredLoadTask.registerConstantDeferredUse(wrapper, prefix);
-    return addConstant(wrapper, compiler);
-  }
-
   HConstant addConstantInt(int i, Compiler compiler) {
     return addConstant(compiler.backend.constantSystem.createInt(i), compiler);
   }
@@ -837,14 +830,14 @@ abstract class HInstruction implements Spannable {
         && !canThrow();
   }
 
-  /// Overridden by [HCheck] to return the actual non-[HCheck]
-  /// instruction it checks against.
+  // Overridden by [HCheck] to return the actual non-[HCheck]
+  // instruction it checks against.
   HInstruction nonCheck() => this;
 
-  /// Can this node throw an exception?
+  // Can this node throw an exception?
   bool canThrow() => false;
 
-  /// Does this node potentially affect control flow.
+  // Does this node potentially affect control flow.
   bool isControlFlow() => false;
 
   bool isExact() => instructionType.isExact || isNull();
@@ -1227,7 +1220,7 @@ abstract class HInstruction implements Spannable {
     // instructions with generics. It has the generic type context
     // available.
     assert(type.kind != TypeKind.TYPE_VARIABLE);
-    assert(type.treatAsRaw || type.isFunctionType);
+    assert(type.treatAsRaw || type.kind == TypeKind.FUNCTION);
     if (type.isDynamic) return this;
     // The type element is either a class or the void element.
     Element element = type.element;
@@ -1399,7 +1392,7 @@ abstract class HInvokeDynamic extends HInvoke {
 class HInvokeClosure extends HInvokeDynamic {
   HInvokeClosure(Selector selector, List<HInstruction> inputs, TypeMask type)
     : super(selector, null, inputs, type) {
-    assert(selector.isClosureCall);
+    assert(selector.isClosureCall());
   }
   accept(HVisitor visitor) => visitor.visitInvokeClosure(this);
 }
@@ -1512,7 +1505,7 @@ class HFieldGet extends HFieldAccess {
             {bool isAssignable})
       : this.isAssignable = (isAssignable != null)
             ? isAssignable
-            : element.isAssignable,
+            : element.isAssignable(),
         super(element, <HInstruction>[receiver], type) {
     sideEffects.clearAllSideEffects();
     sideEffects.clearAllDependencies();
@@ -1529,7 +1522,7 @@ class HFieldGet extends HFieldAccess {
     // [HFieldGet].
     JavaScriptBackend backend = compiler.backend;
     bool interceptor =
-        backend.isInterceptorClass(sourceElement.enclosingClass);
+        backend.isInterceptorClass(sourceElement.getEnclosingClass());
     return interceptor && sourceElement is ThisElement;
   }
 
@@ -2062,7 +2055,7 @@ class HThis extends HParameterValue {
   bool isCodeMotionInvariant() => true;
   bool isInterceptor(Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
-    return backend.isInterceptorClass(sourceElement.enclosingClass);
+    return backend.isInterceptorClass(sourceElement.getEnclosingClass());
   }
 }
 
@@ -2190,7 +2183,7 @@ class HStatic extends HInstruction {
     assert(invariant(this, element.isDeclaration));
     sideEffects.clearAllSideEffects();
     sideEffects.clearAllDependencies();
-    if (element.isAssignable) {
+    if (element.isAssignable()) {
       sideEffects.setDependsOnStaticPropertyStore();
     }
     setUseGvn();
@@ -2202,7 +2195,7 @@ class HStatic extends HInstruction {
   int typeCode() => HInstruction.STATIC_TYPECODE;
   bool typeEquals(other) => other is HStatic;
   bool dataEquals(HStatic other) => element == other.element;
-  bool isCodeMotionInvariant() => !element.isAssignable;
+  bool isCodeMotionInvariant() => !element.isAssignable();
 }
 
 class HInterceptor extends HInstruction {
@@ -2496,12 +2489,12 @@ class HTypeConversion extends HCheck {
   }
 
   bool get hasTypeRepresentation {
-    return typeExpression.isInterfaceType && inputs.length > 1;
+    return typeExpression.kind == TypeKind.INTERFACE && inputs.length > 1;
   }
   HInstruction get typeRepresentation => inputs[1];
 
   bool get hasContext {
-    return typeExpression.isFunctionType && inputs.length > 1;
+    return typeExpression.kind == TypeKind.FUNCTION && inputs.length > 1;
   }
   HInstruction get context => inputs[1];
 

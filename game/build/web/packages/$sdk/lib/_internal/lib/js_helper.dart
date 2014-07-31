@@ -108,6 +108,10 @@ void throwInvalidReflectionError(String memberName) {
       "because it is not included in a @MirrorsUsed annotation.");
 }
 
+bool hasReflectableProperty(var jsFunction) {
+  return JS('bool', '# in #', JS_GET_NAME("REFLECTABLE"), jsFunction);
+}
+
 class JSInvocationMirror implements Invocation {
   static const METHOD = 0;
   static const GETTER = 1;
@@ -213,6 +217,14 @@ class JSInvocationMirror implements Invocation {
       isCatchAll = true;
     }
     if (JS('bool', 'typeof # == "function"', method)) {
+      // TODO(floitsch): bound or tear-off closure does not guarantee that the
+      // function is reflectable.
+      bool isReflectable = hasReflectableProperty(method) ||
+          object is BoundClosure ||
+          object is TearOffClosure;
+      if (!isReflectable) {
+        throwInvalidReflectionError(_symbol_dev.Symbol.getName(memberName));
+      }
       if (isCatchAll) {
         return new CachedCatchAllInvocation(
             name, method, isIntercepted, interceptor);
@@ -2355,6 +2367,12 @@ jsPropertyAccess(var jsObject, String property) {
  * FallThroughError exception that will be thrown.
  */
 getFallThroughError() => new FallThroughErrorImplementation();
+
+/**
+ * Represents the type dynamic. The compiler treats this specially.
+ */
+abstract class Dynamic_ {
+}
 
 /**
  * A metadata annotation describing the types instantiated by a native element.

@@ -729,63 +729,26 @@ class _BroadcastLinkedList {
 typedef void _broadcastCallback(StreamSubscription subscription);
 
 /**
- * Done subscription that will send one done event as soon as possible.
+ * Dummy subscription that will never receive any events.
  */
-class _DoneStreamSubscription<T> implements StreamSubscription<T> {
-  static const int _DONE_SENT = 1;
-  static const int _SCHEDULED = 2;
-  static const int _PAUSED = 4;
-
-  final Zone _zone;
-  int _state = 0;
-  _DoneHandler _onDone;
-
-  _DoneStreamSubscription(this._onDone) : _zone = Zone.current {
-    _schedule();
-  }
-
-  bool get _isSent => (_state & _DONE_SENT) != 0;
-  bool get _isScheduled => (_state & _SCHEDULED) != 0;
-  bool get isPaused => _state >= _PAUSED;
-
-  void _schedule() {
-    if (_isScheduled) return;
-    _zone.scheduleMicrotask(_sendDone);
-    _state |= _SCHEDULED;
-  }
+class _DummyStreamSubscription<T> implements StreamSubscription<T> {
+  int _pauseCounter = 0;
 
   void onData(void handleData(T data)) {}
   void onError(Function handleError) {}
-  void onDone(void handleDone()) { _onDone = handleDone; }
+  void onDone(void handleDone()) {}
 
   void pause([Future resumeSignal]) {
-    _state += _PAUSED;
-    if (resumeSignal != null) resumeSignal.whenComplete(resume);
+    _pauseCounter++;
+    if (resumeSignal != null) resumeSignal.then((_) { resume(); });
   }
-
   void resume() {
-    if (isPaused) {
-      _state -= _PAUSED;
-      if (!isPaused && !_isSent) {
-        _schedule();
-      }
-    }
+    if (_pauseCounter > 0) _pauseCounter--;
   }
-
   Future cancel() => null;
+  bool get isPaused => _pauseCounter > 0;
 
-  Future asFuture([futureValue]) {
-    _Future result = new _Future();
-    _onDone = () { result._completeWithValue(null); };
-    return result;
-  }
-
-  void _sendDone() {
-    _state &= ~_SCHEDULED;
-    if (isPaused) return;
-    _state |= _DONE_SENT;
-    if (_onDone != null) _zone.runGuarded(_onDone);
-  }
+  Future asFuture([futureValue]) => new _Future();
 }
 
 class _AsBroadcastStream<T> extends Stream<T> {
@@ -812,10 +775,10 @@ class _AsBroadcastStream<T> extends Stream<T> {
                                { Function onError,
                                  void onDone(),
                                  bool cancelOnError}) {
-    if (_controller == null || _controller.isClosed) {
+    if (_controller == null) {
       // Return a dummy subscription backed by nothing, since
-      // it will only ever send one done event.
-      return new _DoneStreamSubscription<T>(onDone);
+      // it won't ever receive any events.
+      return new _DummyStreamSubscription<T>();
     }
     if (_subscription == null) {
       _subscription = _source.listen(_controller.add,

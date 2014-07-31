@@ -13,35 +13,24 @@ part of dart2js.helpers;
  * returns [:true:] on the stack trace text. This can be used to filter the
  * printed stack traces based on their content. For instance only print stack
  * traces that contain specific paths.
- *
- * If [limit] is provided, the stack trace is limited to [limit] entries.
- *
- * If [throwOnPrint] is `true`, [message] will be thrown after the stack trace
- * has been printed. Together with [condition] this can be used to discover
- * unknown call-sites in tests by filtering known call-sites and throwning
- * otherwise.
  */
-void trace(String message, {bool condition(String stackTrace), int limit,
-                            bool throwOnPrint: false}) {
+void trace(String message, [bool condition(String stackTrace)]) {
   try {
     throw '';
   } catch (e, s) {
     String stackTrace = prettifyStackTrace(
-        s, rangeStart: 1, rangeEnd: limit, filePrefix: stackTraceFilePrefix);
+        s, rangeStart: 1, filePrefix: stackTraceFilePrefix);
     if (condition != null) {
       if (!condition(stackTrace)) return;
     }
     print('$message\n$stackTrace');
-    if (throwOnPrint) throw message;
   }
 }
 
-void traceAndReport(Compiler compiler, Spannable node, String message,
-                    {bool condition(String stackTrace), int limit,
-                     bool throwOnPrint: false}) {
+void traceAndReport(Compiler compiler, Spannable node,
+                    String message, [bool condition(String stackTrace)]) {
 
-  trace(message, limit: limit, throwOnPrint: throwOnPrint,
-        condition: (String stackTrace) {
+  trace(message, (String stackTrace) {
     bool result = condition != null ? condition(stackTrace) : true;
     if (result) {
       reportHere(compiler, node, message);

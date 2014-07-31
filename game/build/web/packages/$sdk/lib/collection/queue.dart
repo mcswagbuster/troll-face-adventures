@@ -31,16 +31,14 @@ abstract class Queue<E> implements Iterable<E>, EfficientLength {
   factory Queue.from(Iterable<E> other) = ListQueue<E>.from;
 
   /**
-   * Removes and returns the first element of this queue.
-   *
-   * The queue must not be empty when this method is called.
+   * Removes and returns the first element of this queue. Throws an
+   * [StateError] exception if this queue is empty.
    */
   E removeFirst();
 
   /**
-   * Removes and returns the last element of the queue.
-   *
-   * The queue must not be empty when this method is called.
+   * Removes and returns the last element of the queue. Throws an
+   * [StateError] exception if this queue is empty.
    */
   E removeLast();
 
@@ -164,7 +162,7 @@ class _DoubleLinkedQueueEntrySentinel<E> extends DoubleLinkedQueueEntry<E> {
   }
 
   E remove() {
-    throw IterableElementError.noElement();
+    throw new StateError("Empty queue");
   }
 
   DoubleLinkedQueueEntry<E> _asNonSentinelEntry() {
@@ -178,7 +176,7 @@ class _DoubleLinkedQueueEntrySentinel<E> extends DoubleLinkedQueueEntry<E> {
   }
 
   E get element {
-    throw IterableElementError.noElement();
+    throw new StateError("Empty queue");
   }
 }
 
@@ -281,11 +279,11 @@ class DoubleLinkedQueue<E> extends IterableBase<E> implements Queue<E> {
   }
 
   E get single {
-    // Note that this throws correctly if the queue is empty.
+    // Note that this also covers the case where the queue is empty.
     if (identical(_sentinel._next, _sentinel._previous)) {
       return _sentinel._next.element;
     }
-    throw IterableElementError.tooMany();
+    throw new StateError("More than one element");
   }
 
   DoubleLinkedQueueEntry<E> lastEntry() {
@@ -319,7 +317,8 @@ class DoubleLinkedQueue<E> extends IterableBase<E> implements Queue<E> {
     return new _DoubleLinkedQueueIterator<E>(_sentinel);
   }
 
-  String toString() => IterableBase.iterableToFullString(this, '{', '}');
+  // TODO(zarah)  Remove this, and let it be inherited by IterableBase
+  String toString() => IterableMixinWorkaround.toStringIterable(this, '{', '}');
 }
 
 class _DoubleLinkedQueueIterator<E> implements Iterator<E> {
@@ -411,18 +410,18 @@ class ListQueue<E> extends IterableBase<E> implements Queue<E> {
   int get length => (_tail - _head) & (_table.length - 1);
 
   E get first {
-    if (_head == _tail) throw IterableElementError.noElement();
+    if (_head == _tail) throw new StateError("No elements");
     return _table[_head];
   }
 
   E get last {
-    if (_head == _tail) throw IterableElementError.noElement();
+    if (_head == _tail) throw new StateError("No elements");
     return _table[(_tail - 1) & (_table.length - 1)];
   }
 
   E get single {
-    if (_head == _tail) throw IterableElementError.noElement();
-    if (length > 1) throw IterableElementError.tooMany();
+    if (_head == _tail) throw new StateError("No elements");
+    if (length > 1) throw new StateError("Too many elements");
     return _table[_head];
   }
 
@@ -538,7 +537,8 @@ class ListQueue<E> extends IterableBase<E> implements Queue<E> {
     }
   }
 
-  String toString() => IterableBase.iterableToFullString(this, "{", "}");
+  // TODO(zarah)  Remove this, and let it be inherited by IterableBase
+  String toString() => IterableMixinWorkaround.toStringIterable(this, '{', '}');
 
   // Queue interface.
 
@@ -552,7 +552,7 @@ class ListQueue<E> extends IterableBase<E> implements Queue<E> {
   }
 
   E removeFirst() {
-    if (_head == _tail) throw IterableElementError.noElement();
+    if (_head == _tail) throw new StateError("No elements");
     _modificationCount++;
     E result = _table[_head];
     _table[_head] = null;
@@ -561,7 +561,7 @@ class ListQueue<E> extends IterableBase<E> implements Queue<E> {
   }
 
   E removeLast() {
-    if (_head == _tail) throw IterableElementError.noElement();
+    if (_head == _tail) throw new StateError("No elements");
     _modificationCount++;
     _tail = (_tail - 1) & (_table.length - 1);
     E result = _table[_tail];

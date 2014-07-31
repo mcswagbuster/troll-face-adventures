@@ -27,7 +27,7 @@ void printString(String string) {
 
   // Inside browser or nodejs.
   if (JS('bool', r'typeof console == "object"') &&
-      JS('bool', r'typeof console.log != "undefined"')) {
+      JS('bool', r'typeof console.log == "function"')) {
     JS('void', r'console.log(#)', string);
     return;
   }

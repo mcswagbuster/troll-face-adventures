@@ -481,6 +481,15 @@ class Printer implements NodeVisitor {
                         newInForInit: inForInit, newAtStatementBegin: false);
   }
 
+  visitSequence(Sequence sequence) {
+    // Note that we only require that the entries are expressions and not
+    // assignments. This means that nested sequences are not put into
+    // parenthesis.
+    visitCommaSeparated(sequence.expressions, EXPRESSION,
+                        newInForInit: false,
+                        newAtStatementBegin: atStatementBegin);
+  }
+
   visitAssignment(Assignment assignment) {
     visitNestedExpression(assignment.leftHandSide, LEFT_HAND_SIDE,
                           newInForInit: inForInit,
@@ -547,9 +556,8 @@ class Printer implements NodeVisitor {
     bool leftSpace = true;   // left<HERE>op right
     switch (op) {
       case ',':
-        //  x, (y, z) <=> (x, y), z.
         leftPrecedenceRequirement = EXPRESSION;
-        rightPrecedenceRequirement = EXPRESSION;
+        rightPrecedenceRequirement = LOGICAL_OR;
         leftSpace = false;
         break;
       case "||":

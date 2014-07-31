@@ -194,12 +194,11 @@ abstract class Future<T> {
   }
 
   /**
-   * Creates a future that runs its computation after a delay.
+   * Creates a future that completes after a delay.
    *
-   * The [computation] will be executed after the given [duration] has passed,
-   * and the future is completed with the result.
-   * If the duration is 0 or less,
-   * it completes no sooner than in the next event-loop iteration.
+   * The future will be completed after the given [duration] has passed with
+   * the result of calling [computation]. If the duration is 0 or less, it
+   * completes no sooner than in the next event-loop iteration.
    *
    * If [computation] is omitted,
    * it will be treated as if [computation] was set to `() => null`,
@@ -208,8 +207,8 @@ abstract class Future<T> {
    * If calling [computation] throws, the created future will complete with the
    * error.
    *
-   * See also [Completer] for a way to create and complete a future at a
-   * later time that isn't necessarily after a known fixed duration.
+   * See also [Completer] for a way to complete a future at a later
+   * time that isn't a known fixed duration.
    */
   factory Future.delayed(Duration duration, [T computation()]) {
     Completer completer = new Completer.sync();
@@ -217,7 +216,7 @@ abstract class Future<T> {
     if (computation != null) {
       result = result.then((ignored) => computation());
     }
-    new Timer(duration, completer.complete);
+    new Timer(duration, () { completer.complete(null); });
     return result;
   }
 
@@ -488,25 +487,18 @@ class TimeoutException implements Exception {
  * A way to produce Future objects and to complete them later
  * with a value or error.
  *
- * Most of the time, the simplest way to create a future is to just use
- * one of the [Future] constructors to capture the result of a single
- * asynchronous computation:
- *
- *     new Future(() { doSomething(); return result; });
- *
- * or, if the future represents the result of a sequence of asynchronous
- * computations, they can be chained using [Future.then] or similar functions
- * on [Future]:
+ * If you already have a Future, you probably don't need a Completer.
+ * Instead, you can usually use [Future.then], which returns a Future:
  *
  *     Future doStuff(){
  *       return someAsyncOperation().then((result) {
- *         return someOtherAsyncOperation(result);
+ *         // Do something.
  *       });
  *     }
  *
- * If you do need to create a Future from scratch — for example,
+ * If you do need to create a Future from scratch—for example,
  * when you're converting a callback-based API into a Future-based
- * one — you can use a Completer as follows:
+ * one—you can use a Completer as follows:
  *
  *     Class AsyncOperation {
  *       Completer _completer = new Completer();
@@ -517,12 +509,12 @@ class TimeoutException implements Exception {
  *       }
  *
  *       // Something calls this when the value is ready.
- *       void _finishOperation(T result) {
+ *       _finishOperation(T result) {
  *         _completer.complete(result);
  *       }
  *
  *       // If something goes wrong, call this.
- *       void _errorHappened(error) {
+ *       _errorHappened(error) {
  *         _completer.completeError(error);
  *       }
  *     }

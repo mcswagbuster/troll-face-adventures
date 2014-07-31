@@ -104,8 +104,6 @@ class SecureServerSocket extends Stream<SecureSocket> {
    * is fully closed and is no longer bound.
    */
   Future<SecureServerSocket> close() => _socket.close().then((_) => this);
-
-  void set _owner(owner) { _socket._owner = owner; }
 }
 
 
@@ -280,8 +278,6 @@ class RawSecureServerSocket extends Stream<RawSecureSocket> {
       close();
     }
   }
-
-  void set _owner(owner) { (_socket as dynamic)._owner = owner; }
 }
 
 

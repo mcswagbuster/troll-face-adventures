@@ -110,15 +110,10 @@ abstract class TracerVisitor<T extends TypeInformation>
     addNewEscapeInformation(tracedType);
     while (!workList.isEmpty) {
       currentUser = workList.removeLast();
-      int expectedWork = analyzedElements.length + currentUser.users.length;
-      if (expectedWork > MAX_ANALYSIS_COUNT) {
-        bailout('Too many users');
-        break;
-      }
-      for (TypeInformation info in currentUser.users) {
+      currentUser.users.forEach((TypeInformation info) {
         analyzedElements.add(info.owner);
         info.accept(this);
-      }
+      });
       while (!listsToAnalyze.isEmpty) {
         analyzeStoredIntoList(listsToAnalyze.removeLast());
       }
@@ -126,6 +121,10 @@ abstract class TracerVisitor<T extends TypeInformation>
         analyzeStoredIntoMap(mapsToAnalyze.removeLast());
       }
       if (!continueAnalyzing) break;
+      if (analyzedElements.length > MAX_ANALYSIS_COUNT) {
+        bailout('Too many users');
+        break;
+      }
     }
   }
 
@@ -190,7 +189,7 @@ abstract class TracerVisitor<T extends TypeInformation>
         flow.users.forEach((user) {
           if (user is !DynamicCallSiteTypeInformation) return;
           if (user.receiver != flow) return;
-          if (inferrer._returnsListElementTypeSet.contains(user.selector)) {
+          if (returnsListElementTypeSet.contains(user.selector)) {
             addNewEscapeInformation(user);
           } else if (!doesNotEscapeListSet.contains(user.selector.name)) {
             bailout('Escape from a list via [${user.selector.name}]');
@@ -209,7 +208,7 @@ abstract class TracerVisitor<T extends TypeInformation>
         flow.users.forEach((user) {
           if (user is !DynamicCallSiteTypeInformation) return;
           if (user.receiver != flow) return;
-          if (user.selector.isIndex) {
+          if (user.selector.isIndex()) {
             addNewEscapeInformation(user);
           } else if (!doesNotEscapeMapSet.contains(user.selector.name)) {
             bailout('Escape from a map via [${user.selector.name}]');
@@ -231,7 +230,7 @@ abstract class TracerVisitor<T extends TypeInformation>
     String selectorName = info.selector.name;
     List<TypeInformation> arguments = info.arguments.positional;
     return (selectorName == '[]=' && currentUser == arguments[1])
-        || (selectorName == 'insert' && currentUser == arguments[1])
+        || (selectorName == 'insert' && currentUser == arguments[0])
         || (selectorName == 'add' && currentUser == arguments[0]);
   }
 
@@ -239,7 +238,9 @@ abstract class TracerVisitor<T extends TypeInformation>
     if (info.arguments == null) return false;
     var receiverType = info.receiver.type;
     if (!receiverType.isMap) return false;
-    return info.selector.name == '[]=';
+    String selectorName = info.selector.name;
+    List<TypeInformation> arguments = info.arguments.positional;
+    return selectorName == '[]=';
   }
 
   /**
@@ -293,12 +294,6 @@ abstract class TracerVisitor<T extends TypeInformation>
       bailout('Used as key in Map');
     }
 
-    if (info.targetsIncludeNoSuchMethod &&
-        info.arguments != null &&
-        info.arguments.contains(currentUser)) {
-      bailout('Passed to noSuchMethod');
-    }
-
     Iterable<Element> inferredTargetTypes = info.targets.map((element) {
       return inferrer.types.getInferredTypeOf(element);
     });
@@ -313,8 +308,8 @@ abstract class TracerVisitor<T extends TypeInformation>
    * [isAddedToContainer].
    */
   bool isParameterOfListAddingMethod(Element element) {
-    if (!element.isParameter) return false;
-    if (element.enclosingClass != compiler.backend.listImplementation) {
+    if (!element.isParameter()) return false;
+    if (element.getEnclosingClass() != compiler.backend.listImplementation) {
       return false;
     }
     Element method = element.enclosingElement;
@@ -329,8 +324,8 @@ abstract class TracerVisitor<T extends TypeInformation>
    * [isValueAddedToMap] and [isKeyAddedToMap].
    */
   bool isParameterOfMapAddingMethod(Element element) {
-    if (!element.isParameter) return false;
-    if (element.enclosingClass != compiler.backend.mapImplementation) {
+    if (!element.isParameter()) return false;
+    if (element.getEnclosingClass() != compiler.backend.mapImplementation) {
       return false;
     }
     Element method = element.enclosingElement;
@@ -338,23 +333,23 @@ abstract class TracerVisitor<T extends TypeInformation>
   }
 
   bool isClosure(Element element) {
-    if (!element.isFunction) return false;
+    if (!element.isFunction()) return false;
     /// Creating an instance of a class that implements [Function] also
     /// closurizes the corresponding [call] member. We do not currently
     /// track these, thus the check for [isClosurized] on such a method will
     /// return false. Instead we catch that case here for now.
     // TODO(herhut): Handle creation of closures from instances of Function.
-    if (element.isInstanceMember &&
+    if (element.isInstanceMember() &&
         element.name == Compiler.CALL_OPERATOR_NAME) {
       return true;
     }
-    Element outermost = element.outermostEnclosingMemberOrTopLevel;
+    Element outermost = element.getOutermostEnclosingMemberOrTopLevel();
     return outermost.declaration != element.declaration;
   }
 
   void visitElementTypeInformation(ElementTypeInformation info) {
     Element element = info.element;
-    if (element.isParameter
+    if (element.isParameter()
         && inferrer.isNativeElement(element.enclosingElement)) {
       bailout('Passed to a native method');
     }

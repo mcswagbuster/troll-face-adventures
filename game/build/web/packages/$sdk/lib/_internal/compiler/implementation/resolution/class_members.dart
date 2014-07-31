@@ -70,7 +70,7 @@ abstract class MembersCreator {
   /// interface unless it is abstract or declares a `noSuchMethod` method.
   void computeAllMembers() {
     Map<Name, Member> declaredMembers = computeMembers(null, null);
-    if (!cls.isAbstract &&
+    if (!cls.modifiers.isAbstract() &&
         !declaredMembers.containsKey(const PublicName('noSuchMethod'))) {
       // Check for unimplemented members on concrete classes that neither have
       // a `@proxy` annotation nor declare a `noSuchMethod` method.
@@ -160,11 +160,11 @@ abstract class MembersCreator {
         }
       }
     } else {
-      LibraryElement library = cls.library;
+      LibraryElement library = cls.getLibrary();
       InterfaceType thisType = cls.thisType;
 
       void createMember(Element element) {
-        if (element.isConstructor) return;
+        if (element.isConstructor()) return;
         String elementName = element.name;
         if (shouldSkipName(elementName)) return;
         if (nameText != null && elementName != nameText) return;
@@ -187,31 +187,33 @@ abstract class MembersCreator {
         }
 
         Name name = new Name(element.name, library);
-        if (element.isField) {
+        if (element.isField()) {
           DartType type = element.computeType(compiler);
-          addDeclaredMember(name, type, new FunctionType.synthesized(type));
-          if (!element.isConst && !element.isFinal) {
+          addDeclaredMember(name, type,
+              new FunctionType(compiler.functionClass, type));
+          if (!element.modifiers.isConst() &&
+              !element.modifiers.isFinal()) {
             addDeclaredMember(name.setter, type,
-                new FunctionType.synthesized(
-                                 const VoidType(),
+                new FunctionType(compiler.functionClass,
+                                 compiler.types.voidType,
                                  const Link<DartType>().prepend(type)));
           }
-        } else if (element.isGetter) {
+        } else if (element.isGetter()) {
           FunctionType functionType = element.computeType(compiler);
           DartType type = functionType.returnType;
           addDeclaredMember(name, type, functionType);
-        } else if (element.isSetter) {
+        } else if (element.isSetter()) {
           FunctionType functionType = element.computeType(compiler);
           DartType type;
           if (!functionType.parameterTypes.isEmpty) {
             type = functionType.parameterTypes.head;
           } else {
-            type = const DynamicType();
+            type = compiler.types.dynamicType;
           }
           name = name.setter;
           addDeclaredMember(name, type, functionType);
         } else {
-          assert(invariant(element, element.isFunction));
+          assert(invariant(element, element.isFunction()));
           FunctionType type = element.computeType(compiler);
           addDeclaredMember(name, type, type);
         }
@@ -439,7 +441,7 @@ abstract class MembersCreator {
         errorneousElement,
         errorMessage,
         {'memberName': contextElement.name,
-         'className': contextElement.enclosingClass.name});
+         'className': contextElement.getEnclosingClass().name});
     compiler.reportInfo(contextElement, contextMessage);
   }
 
@@ -448,7 +450,7 @@ abstract class MembersCreator {
                                         ClassMemberMixin cls,
                                         String name) {
     if (cls.isMemberComputed(name)) return;
-    LibraryElement library = cls.library;
+    LibraryElement library = cls.getLibrary();
     _computeClassMember(compiler, cls, name,
         new Setlet<Name>()..add(new Name(name, library))
                           ..add(new Name(name, library, isSetter: true)));
@@ -486,7 +488,7 @@ class ClassMembersCreator extends MembersCreator {
   }
 
   void checkInterfaceImplementation() {
-    LibraryElement library = cls.library;
+    LibraryElement library = cls.getLibrary();
     classMembers.forEach((Name name, Member classMember) {
       if (!name.isAccessibleFrom(library)) return;
      checkInterfaceMember(name, classMember, classMember.implementation);
@@ -587,7 +589,7 @@ class InterfaceMembersCreator extends MembersCreator {
 
   /// Checks that a class member exists for every interface member.
   void checkInterfaceImplementation() {
-    LibraryElement library = cls.library;
+    LibraryElement library = cls.getLibrary();
     interfaceMembers.forEach((Name name, MemberSignature interfaceMember) {
       if (!name.isAccessibleFrom(library)) return;
       Member classMember = classMembers[name];
@@ -702,7 +704,7 @@ class InterfaceMembersCreator extends MembersCreator {
       if (member.isSetter) {
         requiredParameters = 1;
       }
-      if (member.type.isFunctionType) {
+      if (member.type.kind == TypeKind.FUNCTION) {
         FunctionType type = member.type;
         type.namedParameters.forEach(
             (String name) => names.add(name));
@@ -727,12 +729,12 @@ class InterfaceMembersCreator extends MembersCreator {
       Link<DartType> requiredParameterTypes = const Link<DartType>();
       while (--minRequiredParameters >= 0) {
         requiredParameterTypes =
-            requiredParameterTypes.prepend(const DynamicType());
+            requiredParameterTypes.prepend(compiler.types.dynamicType);
       }
       Link<DartType> optionalParameterTypes = const Link<DartType>();
       while (--optionalParameters >= 0) {
         optionalParameterTypes =
-            optionalParameterTypes.prepend(const DynamicType());
+            optionalParameterTypes.prepend(compiler.types.dynamicType);
       }
       Link<String> namedParameters = const Link<String>();
       Link<DartType> namedParameterTypes = const Link<DartType>();
@@ -741,17 +743,18 @@ class InterfaceMembersCreator extends MembersCreator {
       for (String name in namesReversed) {
         namedParameters = namedParameters.prepend(name);
         namedParameterTypes =
-            namedParameterTypes.prepend(const DynamicType());
+            namedParameterTypes.prepend(compiler.types.dynamicType);
       }
-      FunctionType memberType = new FunctionType.synthesized(
-          const DynamicType(),
+      FunctionType memberType = new FunctionType(
+          compiler.functionClass,
+          compiler.types.dynamicType,
           requiredParameterTypes,
           optionalParameterTypes,
           namedParameters, namedParameterTypes);
       DartType type = memberType;
       if (inheritedMembers.first.isGetter ||
           inheritedMembers.first.isSetter) {
-        type = const DynamicType();
+        type = compiler.types.dynamicType;
       }
       interfaceMembers[name] =
           new SyntheticMember(inheritedMembers, type, memberType);
@@ -809,6 +812,7 @@ abstract class ClassMemberMixin implements ClassElement {
   void computeClassMember(Compiler compiler, String name, Setlet<Name> names) {
     if (isMemberComputed(name)) return;
     if (isPrivateName(name)) {
+      LibraryElement library = getLibrary();
       names..add(new Name(name, library))
            ..add(new Name(name, library, isSetter: true));
     }

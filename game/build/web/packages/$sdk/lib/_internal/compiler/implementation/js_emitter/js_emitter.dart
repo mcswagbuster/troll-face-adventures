@@ -21,7 +21,7 @@ import '../elements/elements.dart' show
     ConstructorBodyElement;
 
 import '../js/js.dart' show
-    js, templateManager;
+    js;
 
 import '../js_backend/js_backend.dart' show
     CheckedModeHelper,

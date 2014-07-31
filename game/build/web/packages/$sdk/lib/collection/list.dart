@@ -4,6 +4,9 @@
 
 part of dart.collection;
 
+/** A reusable set used to identify cyclic lists during toString() calls. */
+Set _toStringVisiting = new HashSet.identity();
+
 /**
  * Abstract implementation of a list.
  *
@@ -19,16 +22,7 @@ part of dart.collection;
  * to the growable list, or, preferably, use `DelegatingList` from
  * "package:collection/wrappers.dart" instead.
  */
-abstract class ListBase<E> extends Object with ListMixin<E> {
-  /**
-   * Convert a `List` to a string as `[each, element, as, string]`.
-   *
-   * Handles circular references where converting one of the elements
-   * to a string ends up converting [list] to a string again.
-   */
-  static String listToString(List list) =>
-      IterableBase.iterableToFullString(list, '[', ']');
-}
+abstract class ListBase<E> = Object with ListMixin<E>;
 
 /**
  * Base implementation of a [List] class.
@@ -507,5 +501,21 @@ abstract class ListMixin<E> implements List<E> {
 
   Iterable<E> get reversed => new ReversedListIterable(this);
 
-  String toString() => IterableBase.iterableToFullString(this, '[', ']');
+  String toString() {
+    if (_toStringVisiting.contains(this)) {
+      return '[...]';
+    }
+
+    var result = new StringBuffer();
+    try {
+      _toStringVisiting.add(this);
+      result.write('[');
+      result.writeAll(this, ', ');
+      result.write(']');
+     } finally {
+       _toStringVisiting.remove(this);
+     }
+
+    return result.toString();
+  }
 }

@@ -518,6 +518,11 @@ abstract class ClosureMirror implements InstanceMirror {
    */
   InstanceMirror apply(List positionalArguments,
                        [Map<Symbol, dynamic> namedArguments]);
+
+  /**
+   * Not yet supported. Calling this method throws an [UnsupportedError].
+   */
+  InstanceMirror findInContext(Symbol name, {ifAbsent: null});
 }
 
 /**

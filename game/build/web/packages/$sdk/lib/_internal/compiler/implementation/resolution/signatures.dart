@@ -20,13 +20,13 @@ class SignatureResolver extends MappingVisitor<ParameterElementX> {
 
   SignatureResolver(Compiler compiler,
                     Element enclosingElement,
-                    ResolutionRegistry registry,
+                    TreeElementMapping treeElements,
                     {this.defaultValuesError})
       : this.enclosingElement = enclosingElement,
         this.scope = enclosingElement.buildScope(),
         this.resolver =
-            new ResolverVisitor(compiler, enclosingElement, registry),
-        super(compiler, registry);
+            new ResolverVisitor(compiler, enclosingElement, treeElements),
+        super(compiler, treeElements);
 
   bool get defaultValuesAllowed => defaultValuesError == null;
 
@@ -57,10 +57,10 @@ class SignatureResolver extends MappingVisitor<ParameterElementX> {
     if (definition is NodeList) {
       internalError(node, 'optional parameters are not implemented');
     }
-    if (node.modifiers.isConst) {
+    if (node.modifiers.isConst()) {
       compiler.reportError(node, MessageKind.FORMAL_DECLARED_CONST);
     }
-    if (node.modifiers.isStatic) {
+    if (node.modifiers.isStatic()) {
       compiler.reportError(node, MessageKind.FORMAL_DECLARED_STATIC);
     }
 
@@ -90,7 +90,7 @@ class SignatureResolver extends MappingVisitor<ParameterElementX> {
     void computeFunctionType(FunctionExpression functionExpression) {
       FunctionSignature functionSignature = SignatureResolver.analyze(
           compiler, functionExpression.parameters,
-          functionExpression.returnType, element, registry,
+          functionExpression.returnType, element, mapping,
           defaultValuesError: MessageKind.FUNCTION_TYPE_FORMAL_WITH_DEFAULT);
       element.functionSignatureCache = functionSignature;
       element.typeCache = functionSignature.type;
@@ -118,7 +118,7 @@ class SignatureResolver extends MappingVisitor<ParameterElementX> {
         if (fieldElement != null) {
           element.typeCache = fieldElement.computeType(compiler);
         } else {
-          element.typeCache = const DynamicType();
+          element.typeCache = compiler.types.dynamicType;
         }
       }
     }
@@ -175,11 +175,11 @@ class SignatureResolver extends MappingVisitor<ParameterElementX> {
       Identifier name = getParameterName(node);
       validateName(name);
       Element fieldElement =
-          enclosingElement.enclosingClass.lookupLocalMember(name.source);
+          enclosingElement.getEnclosingClass().lookupLocalMember(name.source);
       if (fieldElement == null ||
           !identical(fieldElement.kind, ElementKind.FIELD)) {
         error(node, MessageKind.NOT_A_FIELD, {'fieldName': name});
-      } else if (!fieldElement.isInstanceMember) {
+      } else if (!fieldElement.isInstanceMember()) {
         error(node, MessageKind.NOT_INSTANCE_FIELD, {'fieldName': name});
       }
       element = new FieldParameterElementX(enclosingElement,
@@ -208,11 +208,11 @@ class SignatureResolver extends MappingVisitor<ParameterElementX> {
   Element visitFunctionExpression(FunctionExpression node) {
     // This is a function typed parameter.
     Modifiers modifiers = currentDefinitions.modifiers;
-    if (modifiers.isFinal) {
+    if (modifiers.isFinal()) {
       compiler.reportError(modifiers,
           MessageKind.FINAL_FUNCTION_TYPE_PARAMETER);
     }
-    if (modifiers.isVar) {
+    if (modifiers.isVar()) {
       compiler.reportError(modifiers, MessageKind.VAR_FUNCTION_TYPE_PARAMETER);
     }
 
@@ -244,19 +244,19 @@ class SignatureResolver extends MappingVisitor<ParameterElementX> {
                                    NodeList formalParameters,
                                    Node returnNode,
                                    Element element,
-                                   ResolutionRegistry registry,
+                                   TreeElementMapping mapping,
                                    {MessageKind defaultValuesError}) {
     SignatureResolver visitor = new SignatureResolver(compiler, element,
-        registry, defaultValuesError: defaultValuesError);
+        mapping, defaultValuesError: defaultValuesError);
     Link<Element> parameters = const Link<Element>();
     int requiredParameterCount = 0;
     if (formalParameters == null) {
-      if (!element.isGetter) {
+      if (!element.isGetter()) {
         compiler.reportError(element, MessageKind.MISSING_FORMALS);
       }
     } else {
-      if (element.isGetter) {
-        if (!identical(formalParameters.endToken.next.stringValue,
+      if (element.isGetter()) {
+        if (!identical(formalParameters.getEndToken().next.stringValue,
                        // TODO(ahe): Remove the check for native keyword.
                        'native')) {
           compiler.reportError(formalParameters,
@@ -269,18 +269,18 @@ class SignatureResolver extends MappingVisitor<ParameterElementX> {
       parameters = parametersBuilder.toLink();
     }
     DartType returnType;
-    if (element.isFactoryConstructor) {
-      returnType = element.enclosingClass.thisType;
+    if (element.isFactoryConstructor()) {
+      returnType = element.getEnclosingClass().thisType;
       // Because there is no type annotation for the return type of
       // this element, we explicitly add one.
       if (compiler.enableTypeAssertions) {
-        registry.registerIsCheck(returnType);
+        compiler.enqueuer.resolution.registerIsCheck(returnType, mapping);
       }
     } else {
       returnType = visitor.resolveReturnType(returnNode);
     }
 
-    if (element.isSetter && (requiredParameterCount != 1 ||
+    if (element.isSetter() && (requiredParameterCount != 1 ||
                                visitor.optionalParameterCount != 0)) {
       // If there are no formal parameters, we already reported an error above.
       if (formalParameters != null) {
@@ -336,17 +336,17 @@ class SignatureResolver extends MappingVisitor<ParameterElementX> {
 
   DartType resolveTypeAnnotation(TypeAnnotation annotation) {
     DartType type = resolveReturnType(annotation);
-    if (type.isVoid) {
+    if (type == compiler.types.voidType) {
       compiler.reportError(annotation, MessageKind.VOID_NOT_ALLOWED);
     }
     return type;
   }
 
   DartType resolveReturnType(TypeAnnotation annotation) {
-    if (annotation == null) return const DynamicType();
+    if (annotation == null) return compiler.types.dynamicType;
     DartType result = resolver.resolveTypeAnnotation(annotation);
     if (result == null) {
-      return const DynamicType();
+      return compiler.types.dynamicType;
     }
     return result;
   }

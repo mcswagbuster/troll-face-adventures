@@ -10,6 +10,7 @@ import 'dart:isolate';
 import 'package:barback/barback.dart';
 
 import '../serialize.dart';
+import '../utils.dart';
 import 'transform.dart';
 
 /// Converts [transformer] into a serializable map.
